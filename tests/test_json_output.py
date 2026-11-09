@@ -245,6 +245,9 @@ REGISTERED_RULES = {
     "MSN206": "file-read",
     "MSN207": "raw-string-placeholder",
     "MSN208": "model-cycle",
+    "MSN209": "cross-domain-read",
+    "MSN210": "read-against-build-order",
+    "MSN211": "stream-of-upsert-silver",
     "MSN901": "usage-error",
     "MSN902": "unknown-environment",
     "MSN903": "databricks-cli-missing",
@@ -293,6 +296,15 @@ def seed(column: str, rows: str | None, name: str = "countries") -> Callable[[Pa
             (folder / f"{name}.csv").write_text(rows)
 
     return declare
+
+
+def read_a_domains_gold_from_shared(project: Path) -> None:
+    """A Shared Domain Model reading a Domain's gold, which nobody outside that Domain reads."""
+    replacing("mason.platform.yaml", "  - sales\n", "  - sales\n  - shared\n")(project)
+    folder = project / "domains/shared/models"
+    folder.mkdir(parents=True)
+    (folder / "dim_order.yaml").write_text("kind: model\nversion: 1\nsql: dim_order.sql\n")
+    (folder / "dim_order.sql").write_text("SELECT * FROM sales.gold.fct_orders")
 
 
 INVALID_PROJECTS = {
@@ -349,6 +361,18 @@ INVALID_PROJECTS = {
     ),
     "MSN208": lambda project: (project / f"{MODEL}.sql").write_text(
         "SELECT * FROM sales.gold.fct_orders"
+    ),
+    "MSN209": lambda project: read_a_domains_gold_from_shared(project),
+    "MSN210": lambda project: (project / f"{MODEL}.sql").write_text(
+        "SELECT * FROM sales.bronze.orders"
+    ),
+    "MSN211": lambda project: (
+        replacing(
+            SOURCE,
+            "format: json\n",
+            "format: json\nsilver:\n  keys: [order_id]\n  sequence_by: updated_at\n",
+        )(project),
+        (project / f"{MODEL}.sql").write_text("SELECT * FROM STREAM(sales.silver.orders)"),
     ),
 }
 

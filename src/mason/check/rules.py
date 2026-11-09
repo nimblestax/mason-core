@@ -3,6 +3,9 @@
 from mason import names, sql
 from mason.diagnostics import Diagnostic, error
 from mason.kinds.model import Model
+from mason.kinds.platform import SHARED_DOMAIN
+from mason.kinds.seed import Seed
+from mason.kinds.source import Source
 from mason.load.project import Project
 from mason.names import LogicalName
 
@@ -18,8 +21,12 @@ def check(project: Project) -> list[Diagnostic]:
         except sql.Unparseable as failure:
             diagnostics.append(_unparseable(file, failure))
             continue
-        reads[_gold(project, model)] = set(query.reads)
+        # A loop across Domains needs a read of another Domain's gold, which is its own failure.
+        reads[_gold(project, model)] = {
+            read for read in query.reads if read.domain == model.domain.lower()
+        }
         diagnostics += _reads(project, known, file, query)
+        diagnostics += _build_order(project, known, model, file, query)
         diagnostics += [_unqualified(file, name) for name in query.unqualified]
         diagnostics += [_computed(file, computed) for computed in query.computed]
         diagnostics += [_file_read(file, found) for found in query.file_reads]
@@ -46,6 +53,104 @@ def _reads(project: Project, known: set[LogicalName], file: str, query: sql.Quer
         else:
             diagnostics.append(_unresolved(file, written))
     return diagnostics
+
+
+def _build_order(
+    project: Project, known: set[LogicalName], model: Model, file: str, query: sql.Query
+) -> list[Diagnostic]:
+    """A Gold Model reads silver and gold, never bronze. Its own Domain's are all open to it, but
+    from other Domains it reads only Exported silver and the Shared Domain's gold.
+
+    So every read points to a step built earlier, and Domains can't read each other in a loop.
+    """
+    bronze, silver = (layer.lower() for layer in project.platform.source_layers)
+    domain = model.domain.lower()
+    published = _published(project, known, domain)
+    upserts = {
+        LogicalName(source.domain, silver, source.name)
+        for source in project.sources
+        if source.silver.keys
+    }
+    diagnostics = []
+    for read, written in sorted(query.reads.items(), key=lambda item: str(item[0])):
+        if read not in known:
+            continue  # Reported as a table that isn't in the project.
+        if read.layer == bronze:
+            diagnostics.append(_bronze_read(file, written, read, silver))
+        elif read.domain != domain and read not in published:
+            if read.layer == silver:
+                diagnostics.append(_private_silver(file, written, read))
+            else:
+                diagnostics.append(_other_domains_gold(file, written, read))
+        elif read in query.streams and read in upserts:
+            diagnostics.append(_stream_of_upsert(file, query.streams[read]))
+    return diagnostics
+
+
+def _published(project: Project, known: set[LogicalName], domain: str) -> set[LogicalName]:
+    """What a Gold Model in `domain` may read from other Domains."""
+    silver = project.platform.source_layers[1]
+    tables = (*project.sources, *project.seeds)
+    published = {
+        LogicalName(table.domain, silver, table.name) for table in tables if _is_exported(table)
+    }
+    if domain != SHARED_DOMAIN:
+        model_layers = {layer.lower() for layer in project.platform.model_layers}
+        published |= {
+            name for name in known if name.domain == SHARED_DOMAIN and name.layer in model_layers
+        }
+    return published
+
+
+def _is_exported(table: Source | Seed) -> bool:
+    return table.silver.export if isinstance(table, Source) else table.export
+
+
+def _stream_of_upsert(file: str, written: sql.Found) -> Diagnostic:
+    return error(
+        "MSN211",
+        file,
+        f"{written.text} is upsert silver, which changes rows in place, and `STREAM(...)` reads"
+        " only new rows. The pipeline would fail at runtime, after its first update.",
+        f"Read it without `STREAM(...)`, as `FROM {written.text}`, so this Gold Model refreshes"
+        " from the whole table.",
+        written.line,
+    )
+
+
+def _bronze_read(file: str, written: sql.Found, read: LogicalName, silver: str) -> Diagnostic:
+    return error(
+        "MSN210",
+        file,
+        f"{written.text} is bronze, which only its silver reads. Bronze keeps rows as they"
+        " landed, so a Gold Model reads silver, built after it.",
+        f"Read {read.domain}.{silver}.{read.entity} instead.",
+        written.line,
+    )
+
+
+def _private_silver(file: str, written: sql.Found, read: LogicalName) -> Diagnostic:
+    return error(
+        "MSN209",
+        file,
+        f"{written.text} is silver the {read.domain} Domain hasn't Exported,"
+        " so only that Domain reads it.",
+        f"Ask the {read.domain} Domain's owner to Export it, with `export: true` under a"
+        " Source's `silver:` or in a Seed, or read a table it has Exported.",
+        written.line,
+    )
+
+
+def _other_domains_gold(file: str, written: sql.Found, read: LogicalName) -> Diagnostic:
+    return error(
+        "MSN209",
+        file,
+        f"{written.text} is the {read.domain} Domain's gold. Nobody reads another Domain's gold,"
+        " so each Domain can change its own.",
+        f"Build it from silver the {read.domain} Domain has Exported, or move what's shared"
+        " into the Shared Domain.",
+        written.line,
+    )
 
 
 def _gold(project: Project, model: Model) -> LogicalName:

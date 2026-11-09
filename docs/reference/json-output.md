@@ -112,6 +112,9 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN206`](rules/msn206.md) | `file-read` | A Gold Model reads files or external data, such as `read_files(...)` or ``parquet.`/path` ``, instead of a table. |
 | [`MSN207`](rules/msn207.md) | `raw-string-placeholder` | A raw string in a Gold Model's SQL, such as `r'${env}'`, holds `${`. |
 | [`MSN208`](rules/msn208.md) | `model-cycle` | Gold Models read themselves, or each other in a loop, so none of them can run first. |
+| [`MSN209`](rules/msn209.md) | `cross-domain-read` | A Gold Model reads another Domain's gold, or silver that Domain hasn't Exported. |
+| [`MSN210`](rules/msn210.md) | `read-against-build-order` | A Gold Model reads bronze. |
+| [`MSN211`](rules/msn211.md) | `stream-of-upsert-silver` | A Gold Model reads silver that has `keys` with `STREAM(...)`. |
 | [`MSN901`](rules/msn901.md) | `usage-error` | The command line is wrong. |
 | [`MSN902`](rules/msn902.md) | `unknown-environment` | `--env` isn't an Environment in the project. |
 | [`MSN903`](rules/msn903.md) | `databricks-cli-missing` | `databricks` isn't on the PATH. |

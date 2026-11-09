@@ -70,6 +70,7 @@ def test_a_kind_page_lists_every_field_with_its_type_whether_required_and_defaul
         ["`silver.sequence_by`", "string", "no", "`null`"],
         ["`silver.scd`", "one of `1`, `2`", "no", "`1`"],
         ["`silver.delete_when`", "string", "no", "`null`"],
+        ["`silver.export`", "boolean", "no", "`false`"],
         ["`silver.expectations`", "list of object", "no", "`[]`"],
         ["`silver.expectations[].name`", "string", "yes", ""],
         ["`silver.expectations[].expect`", "string", "yes", ""],
