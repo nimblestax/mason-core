@@ -7,6 +7,21 @@ Every release of Mason, newest first. Each section is also that release's notes 
 
 Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor release, such as 0.2.0, may change config or commands in ways that need edits to your project, and its section here says what to change. A patch release, such as 0.2.1, never does.
 
+## 0.2.0
+
+- `mason init` asks where your tables live and offers three naming styles: `domain-catalogs` (`dev_sales.silver.orders`, the default), `layer-catalogs` (`dev_silver.sales.orders`) and `environment-catalogs` (`dev.sales_silver.orders`).
+- `mason validate` checks that tables are read in build order: bronze, then silver, then gold.
+  - MSN209 `cross-domain-read`: a gold model reads another domain's gold, or silver that domain hasn't exported. A domain exports silver with `export: true`. Gold in the shared domain, the domain called `shared`, is the one gold every domain may read.
+  - MSN210 `read-against-build-order`: a gold model reads bronze.
+  - MSN211 `stream-of-upsert-silver`: a gold model reads silver that has `keys` with `STREAM(...)`. Upserts change rows in place, so the stream fails after a change.
+- Every Kind and every command has its own reference page, and the JSON output page describes each command's `--json` result.
+
+**What to change:** a project that passed `mason validate` on 0.1.0 can fail it on 0.2.0. Run `mason validate` and fix what it reports:
+
+- MSN209: read silver the other domain has exported, or ask its owner to export it. To share a gold model, move it into the shared domain.
+- MSN210: read the silver table of the same name, which the diagnostic gives.
+- MSN211: read the table without `STREAM(...)`, as `FROM sales.silver.orders`. The gold model becomes a materialized view, which Databricks refreshes incrementally where it can.
+
 ## 0.1.0
 
 The first release. Install it into your project with `uv add --dev mason-databricks`.

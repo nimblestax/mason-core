@@ -2,7 +2,7 @@
 title: mason init
 description: Create a working project.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 ---
 
 ```console

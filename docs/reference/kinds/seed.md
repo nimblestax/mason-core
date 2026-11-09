@@ -2,7 +2,7 @@
 title: Seed
 description: Small reference data kept in Git and fully replaced on each deploy.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 ---
 
 A file with `kind: seed`, at version 1. `mason schema seed` prints the same fields from the Mason you installed.
