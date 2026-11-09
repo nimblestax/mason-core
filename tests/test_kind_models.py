@@ -29,7 +29,7 @@ def mason(project: Path, *args: str):
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    assert mason(tmp_path, "init").exit_code == 0
+    assert runner.invoke(app, ["init", str(tmp_path)]).exit_code == 0
     seeds = tmp_path / "domains/sales/seeds"
     seeds.mkdir()
     (seeds / "countries.yaml").write_text(SEED_CONFIG)

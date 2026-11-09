@@ -44,7 +44,7 @@ def mason(project: Path, *args: str):
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    result = mason(tmp_path, "init", "--ci", "github")
+    result = runner.invoke(app, ["init", str(tmp_path), "--ci", "github"])
     assert result.exit_code == 0, result.output
     return tmp_path
 
@@ -124,7 +124,7 @@ def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: P
 
 
 def test_compile_writes_a_package_databricks_accepts(tmp_path: Path, stub_workspace: str):
-    runner.invoke(app, ["init", "--project", str(tmp_path), "--host", stub_workspace])
+    runner.invoke(app, ["init", str(tmp_path), "--host", stub_workspace])
 
     assert mason(tmp_path, "compile").exit_code == 0
 

@@ -175,16 +175,24 @@ def init(
             help="Where tables live. Asked at a terminal when left out; otherwise domain-catalogs.",
         ),
     ] = None,
-    root: ProjectOption = Path("."),
+    folder: Annotated[
+        Path,
+        typer.Argument(
+            help="The folder to create the project in, made if missing. Its name is the"
+            " project's name.",
+            show_default=False,
+        ),
+    ] = Path("."),
 ) -> Outcome[Created]:
-    """Create a working project."""
+    """Create a working project in a folder, by default the current one."""
+    scaffold.refuse_existing_project(folder)  # Before the question, so no answer is wasted.
     style = naming_style or (
         _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
     )
-    scaffold.write_project(root, host, ci.value, style.value)
-    catalogs, schemas = names.platform_objects(project.load(root).platform)
+    scaffold.write_project(folder, host, ci.value, style.value)
+    catalogs, schemas = names.platform_objects(project.load(folder).platform)
     created = Created(
-        project=str(root), naming_style=style.value, catalogs=catalogs, schemas=schemas
+        project=str(folder), naming_style=style.value, catalogs=catalogs, schemas=schemas
     )
     return Outcome(_created_text(created), created)
 

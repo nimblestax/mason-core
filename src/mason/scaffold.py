@@ -7,7 +7,8 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
-from mason.kinds import KINDS, json_schemas
+from mason.diagnostics import USAGE_OR_ENVIRONMENT, Failure, error
+from mason.kinds import KINDS, json_schemas, platform
 
 PLACEHOLDER_HOST = "https://your-workspace.cloud.databricks.com"
 SCHEMA_FOLDER = Path(".mason/schemas")
@@ -21,6 +22,18 @@ NAMING_STYLES = {
 
 # Templates that take values. The rest are copied as they are.
 FILLED_IN = {"mason.platform.yaml", "orders.yaml"}
+
+
+def refuse_existing_project(root: Path) -> None:
+    """Writing over a project would lose its Platform Contract and every edited starter file."""
+    if (root / platform.FILE_NAME).exists():
+        found = error(
+            "MSN909",
+            platform.FILE_NAME,
+            f"{root} already holds a Mason project.",
+            "Run `mason init` in another folder, or give it one, as `mason init <folder>`.",
+        )
+        raise Failure([found], USAGE_OR_ENVIRONMENT)
 
 
 def write_project(root: Path, host: str, ci: str, naming_style: str) -> None:
