@@ -176,7 +176,8 @@ def _results(callback: Any) -> list[type[BaseModel]]:
 def _command_page(name: str, registered: TyperCommand, results: list[type[BaseModel]]) -> str:
     arguments = [p for p in registered.params if isinstance(p, TyperArgument)]
     options = [p for p in registered.params if isinstance(p, TyperOption)]
-    usage = " ".join(["mason", name, *(f"<{p.name}>" for p in arguments), "[OPTIONS]"])
+    shown = [f"<{p.name}>" if p.required else f"[<{p.name}>]" for p in arguments]
+    usage = " ".join(["mason", name, *shown, "[OPTIONS]"])
     sections = [f"```console\n$ {usage}\n```\n"]
     if arguments:
         rows = [f"| `{p.name}` | {getattr(p, 'help', '')} |" for p in arguments]

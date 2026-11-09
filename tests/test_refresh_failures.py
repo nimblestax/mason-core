@@ -48,7 +48,7 @@ class FailingRefresh:
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    assert runner.invoke(cli.app, ["init", "--project", str(tmp_path)]).exit_code == 0
+    assert runner.invoke(cli.app, ["init", str(tmp_path)]).exit_code == 0
     return tmp_path
 
 

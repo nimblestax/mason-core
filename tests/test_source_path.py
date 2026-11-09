@@ -31,7 +31,7 @@ def add_environments(project: Path, host: str | None = None) -> None:
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    assert mason(tmp_path, "init").exit_code == 0
+    assert runner.invoke(app, ["init", str(tmp_path)]).exit_code == 0
     add_environments(tmp_path)
     return tmp_path
 
@@ -147,7 +147,7 @@ def test_two_sources_whose_names_join_alike_keep_separate_settings(project: Path
 
 
 def test_every_target_passes_its_own_path_to_the_pipeline(tmp_path: Path, stub_workspace: str):
-    result = runner.invoke(app, ["init", "--project", str(tmp_path), "--host", stub_workspace])
+    result = runner.invoke(app, ["init", str(tmp_path), "--host", stub_workspace])
     assert result.exit_code == 0, result.output
     add_environments(tmp_path, stub_workspace)
     assert mason(tmp_path, "compile").exit_code == 0
