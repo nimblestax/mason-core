@@ -13,7 +13,7 @@ from mason.cli import app
 runner = CliRunner()
 
 SOURCE = "domains/sales/sources/orders.yaml"
-MODEL = "domains/sales/models/fct_orders.yaml"
+MODEL = "domains/sales/models/gold/fct_orders.yaml"
 PLATFORM = "mason.platform.yaml"
 MODELINE = "# yaml-language-server: $schema="
 
@@ -171,7 +171,7 @@ def test_a_project_with_no_platform_contract_fails_with_a_rule_id(project: Path)
 
 @pytest.mark.parametrize("model", ["dim_date", "fct_orders"])
 def test_every_starter_model_declares_its_kind_beside_its_sql(project: Path, model: str):
-    config = yaml.safe_load((project / f"domains/sales/models/{model}.yaml").read_text())
+    config = yaml.safe_load((project / f"domains/sales/models/gold/{model}.yaml").read_text())
 
     assert config == {"kind": "model", "version": 1, "sql": f"{model}.sql"}
 
@@ -182,7 +182,7 @@ def test_sql_with_no_config_beside_it_fails_validation(project: Path):
     [diagnostic] = failures(project)
 
     assert diagnostic["rule"] == "MSN108"
-    assert diagnostic["file"] == "domains/sales/models/fct_orders.sql"
+    assert diagnostic["file"] == "domains/sales/models/gold/fct_orders.sql"
     assert "kind: model" in diagnostic["fix"]
 
 
@@ -197,7 +197,7 @@ def test_a_model_pointing_at_a_missing_sql_file_fails_validation(project: Path):
 
 
 def test_a_model_may_name_a_sql_file_with_a_different_stem(project: Path):
-    models = project / "domains/sales/models"
+    models = project / "domains/sales/models/gold"
     (models / "fct_orders.sql").rename(models / "orders_query.sql")
     edit(project, MODEL, "sql: fct_orders.sql", "sql: orders_query.sql")
 
@@ -242,7 +242,9 @@ def test_init_writes_a_copy_of_every_kinds_schema(project: Path):
         assert copied == json.loads(installed.stdout)["result"]["json_schema"]
 
 
-@pytest.mark.parametrize("file", [PLATFORM, SOURCE, MODEL, "domains/sales/models/dim_date.yaml"])
+@pytest.mark.parametrize(
+    "file", [PLATFORM, SOURCE, MODEL, "domains/sales/models/gold/dim_date.yaml"]
+)
 def test_every_generated_file_points_editors_at_a_schema_it_passes(project: Path, file: str):
     path = project / file
     first_line = path.read_text().splitlines()[0]

@@ -24,7 +24,7 @@ WAY = "https://nimblestax.com/way"
 LANGUAGES = {".yaml": "yaml", ".yml": "yaml", ".sql": "sql", ".csv": "csv"}
 EXAMPLE = error(
     "MSN201",
-    "domains/sales/models/fct_orders.sql",
+    "domains/sales/models/gold/fct_orders.sql",
     "sales.silver.nope isn't a table in this project.",
     "Declare a Source, Seed or Gold Model with this name, or correct the Logical Name.",
 )

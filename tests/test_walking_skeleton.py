@@ -108,7 +108,7 @@ def test_nothing_in_the_generated_code_refers_to_mason(project: Path):
 
 
 def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: Path):
-    model = project / "domains/sales/models/fct_orders.sql"
+    model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text("SELECT * FROM sales.silver.nonexistent")
 
     result = mason(project, "validate", "--json")
@@ -118,7 +118,7 @@ def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: P
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
     assert diagnostic["rule"] == "MSN201"
-    assert diagnostic["file"] == "domains/sales/models/fct_orders.sql"
+    assert diagnostic["file"] == "domains/sales/models/gold/fct_orders.sql"
     assert "sales.silver.nonexistent" in diagnostic["message"]
     assert diagnostic["fix"]
 
@@ -165,7 +165,9 @@ def test_deploy_ships_the_package_and_then_refreshes_it(project: Path):
 
 
 def test_deploy_refuses_a_project_that_fails_validation(project: Path):
-    (project / "domains/sales/models/fct_orders.sql").write_text("SELECT * FROM sales.silver.nope")
+    (project / "domains/sales/models/gold/fct_orders.sql").write_text(
+        "SELECT * FROM sales.silver.nope"
+    )
     workspace = FakeWorkspace()
 
     with pytest.raises(deploy.InvalidProject):
@@ -204,8 +206,8 @@ def test_generated_code_is_uploaded_even_though_init_gitignores_the_package(proj
 
 def test_a_deleted_model_leaves_the_package(project: Path):
     mason(project, "compile")
-    (project / "domains/sales/models/fct_orders.sql").unlink()
-    (project / "domains/sales/models/fct_orders.yaml").unlink()
+    (project / "domains/sales/models/gold/fct_orders.sql").unlink()
+    (project / "domains/sales/models/gold/fct_orders.yaml").unlink()
 
     mason(project, "compile")
 

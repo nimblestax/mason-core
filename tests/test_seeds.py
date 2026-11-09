@@ -81,7 +81,7 @@ def test_a_row_that_doesnt_match_the_declared_schema_fails_validate(project: Pat
 
 def test_a_gold_model_reads_a_seed_through_a_logical_name(project: Path):
     declare_seed(project, "code,vat_rate\nAU,0.10\n")
-    gold = project / "domains/sales/models/fct_orders.sql"
+    gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.silver.countries\n")
 
     assert mason(project, "validate").exit_code == 0
@@ -95,7 +95,7 @@ def test_a_gold_model_reads_a_seed_through_a_logical_name(project: Path):
 
 def test_a_seed_has_no_bronze_table(project: Path):
     declare_seed(project, "code,vat_rate\nAU,0.10\n")
-    gold = project / "domains/sales/models/fct_orders.sql"
+    gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.bronze.countries\n")
 
     [diagnostic] = failures(project)
@@ -106,7 +106,7 @@ def test_a_seed_has_no_bronze_table(project: Path):
 def test_a_domain_with_only_seeds_still_gets_a_pipeline_that_runs_before_gold(project: Path):
     declare_seed(project, "code,vat_rate\nAU,0.10\n")
     (project / "domains/sales/sources/orders.yaml").unlink()
-    gold = project / "domains/sales/models/fct_orders.sql"
+    gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.silver.countries\n")
 
     assert mason(project, "compile").exit_code == 0

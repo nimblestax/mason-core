@@ -1,5 +1,6 @@
 """The `mason` command. Commands stay thin and work on one loaded Project."""
 
+import sys
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
@@ -9,11 +10,12 @@ from inspect import Parameter, signature
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
 
+import click
 import typer
 from pydantic import BaseModel, Field
 from typer.core import TyperGroup
 
-from mason import output, scaffold
+from mason import names, output, scaffold
 from mason.build import compiler
 from mason.check import rules
 from mason.deploy import deploy as delivery
@@ -51,6 +53,14 @@ app = typer.Typer(cls=ReportingGroup, no_args_is_help=True, add_completion=False
 
 class Ci(StrEnum):
     github = "github"
+
+
+class NamingStyle(StrEnum):
+    """Matches `scaffold.NAMING_STYLES`, in the order `mason init` offers them."""
+
+    domain_catalogs = "domain-catalogs"
+    layer_catalogs = "layer-catalogs"
+    environment_catalogs = "environment-catalogs"
 
 
 ProjectOption = Annotated[Path, typer.Option("--project", help="The project folder.")]
@@ -139,19 +149,80 @@ def _print(diagnostic: Diagnostic) -> None:
     typer.echo(f"  Fix: {diagnostic.fix}")
 
 
+ONE_WORKSPACE_OR_MANY = (
+    "Every Naming Style works with one workspace for all Environments,"
+    " or one workspace per Environment."
+)
+
+
 class Created(BaseModel):
     project: str = Field(description="The folder the project was created in.")
+    naming_style: str = Field(description="The Naming Style its patterns were written from.")
+    catalogs: list[str] = Field(description="The catalogs to create before deploying.")
+    schemas: list[str] = Field(
+        description="The schemas to create before deploying, as `catalog.schema`."
+    )
 
 
 @command()
 def init(
     ci: Annotated[Ci, typer.Option("--ci", help="CI provider to write files for.")] = Ci.github,
     host: Annotated[str, typer.Option("--host", help="Workspace URL.")] = scaffold.PLACEHOLDER_HOST,
+    naming_style: Annotated[
+        NamingStyle | None,
+        typer.Option(
+            "--naming-style",
+            help="Where tables live. Asked at a terminal when left out; otherwise domain-catalogs.",
+        ),
+    ] = None,
     root: ProjectOption = Path("."),
 ) -> Outcome[Created]:
     """Create a working project."""
-    scaffold.write_project(root, host, ci.value)
-    return Outcome(f"Created a Mason project in {root}", Created(project=str(root)))
+    style = naming_style or (
+        _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
+    )
+    scaffold.write_project(root, host, ci.value, style.value)
+    catalogs, schemas = names.platform_objects(project.load(root).platform)
+    created = Created(
+        project=str(root), naming_style=style.value, catalogs=catalogs, schemas=schemas
+    )
+    return Outcome(_created_text(created), created)
+
+
+def _at_a_terminal() -> bool:
+    return sys.stdin.isatty()
+
+
+def _ask_naming_style() -> NamingStyle:
+    """Asked on stderr, so `--json` output on stdout stays one envelope."""
+    example = {"env": "prod", "domain": "sales", "layer": "silver"}
+    typer.echo("Where should tables live? A silver orders table in prod would be:", err=True)
+    for style, (catalog, schema) in scaffold.NAMING_STYLES.items():
+        table = f"{catalog.format(**example)}.{schema.format(**example)}.orders"
+        typer.echo(f"  {style:<22}{table}", err=True)
+    typer.echo(ONE_WORKSPACE_OR_MANY, err=True)
+    chosen = typer.prompt(
+        "Naming Style",
+        default=NamingStyle.domain_catalogs.value,
+        type=click.Choice([style.value for style in NamingStyle]),
+        err=True,
+    )
+    return NamingStyle(chosen)
+
+
+def _created_text(created: Created) -> str:
+    lines = [
+        f"Created a Mason project in {created.project}, with the {created.naming_style}"
+        " Naming Style.",
+        ONE_WORKSPACE_OR_MANY,
+        "",
+        "Create these in Unity Catalog before you deploy:",
+        "  Catalogs:",
+        *(f"    {catalog}" for catalog in created.catalogs),
+        "  Schemas:",
+        *(f"    {schema}" for schema in created.schemas),
+    ]
+    return "\n".join(lines)
 
 
 class Valid(BaseModel):

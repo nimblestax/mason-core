@@ -29,7 +29,9 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_validate_prints_an_envelope_with_the_rule_id_and_exits_1(project: Path):
-    (project / "domains/sales/models/fct_orders.sql").write_text("SELECT * FROM sales.silver.nope")
+    (project / "domains/sales/models/gold/fct_orders.sql").write_text(
+        "SELECT * FROM sales.silver.nope"
+    )
 
     result = mason(project, "validate", "--json")
 
@@ -50,13 +52,21 @@ def test_validate_prints_an_envelope_with_the_rule_id_and_exits_1(project: Path)
         "docs",
     ]
     assert diagnostic["rule"] == "MSN201"
-    assert diagnostic["file"] == "domains/sales/models/fct_orders.sql"
+    assert diagnostic["file"] == "domains/sales/models/gold/fct_orders.sql"
 
 
 @pytest.mark.parametrize(
     ("command", "expected"),
     [
-        (["init"], {"project": "."}),
+        (
+            ["init"],
+            {
+                "project": ".",
+                "naming_style": "domain-catalogs",
+                "catalogs": ["dev_sales"],
+                "schemas": ["dev_sales.bronze", "dev_sales.silver", "dev_sales.gold"],
+            },
+        ),
         (["validate"], {}),
         (["compile"], {"package": "build"}),
     ],
@@ -204,12 +214,14 @@ def test_a_crash_keeps_the_exit_code_contract(tmp_path: Path, as_json: bool):
 
 
 def test_a_project_problem_without_json_stays_text_for_a_person(project: Path):
-    (project / "domains/sales/models/fct_orders.sql").write_text("SELECT * FROM sales.silver.nope")
+    (project / "domains/sales/models/gold/fct_orders.sql").write_text(
+        "SELECT * FROM sales.silver.nope"
+    )
 
     result = mason(project, "validate")
 
     assert result.exit_code == 1
-    assert "MSN201 domains/sales/models/fct_orders.sql:" in result.stdout
+    assert "MSN201 domains/sales/models/gold/fct_orders.sql:" in result.stdout
     assert "Fix: " in result.stdout
 
 
@@ -283,7 +295,7 @@ def replacing(file: str, old: str, new: str) -> Callable[[Path], None]:
 
 
 SOURCE = "domains/sales/sources/orders.yaml"
-MODEL = "domains/sales/models/fct_orders"
+MODEL = "domains/sales/models/gold/fct_orders"
 
 
 def seed(column: str, rows: str | None, name: str = "countries") -> Callable[[Path], None]:

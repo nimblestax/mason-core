@@ -14,7 +14,7 @@ runner = CliRunner()
 
 SOURCE = "domains/sales/sources/orders.yaml"
 SEED = "domains/sales/seeds/countries.yaml"
-MODEL = "domains/sales/models/fct_orders.yaml"
+MODEL = "domains/sales/models/gold/fct_orders.yaml"
 SEED_CONFIG = """kind: seed
 version: 1
 file: countries.csv

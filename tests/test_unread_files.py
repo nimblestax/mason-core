@@ -49,7 +49,7 @@ def test_a_yml_source_is_read_like_a_yaml_one(project: Path):
 
 
 def test_a_yml_model_is_read_and_its_sql_has_a_config_file(project: Path):
-    models = project / "domains/sales/models"
+    models = project / "domains/sales/models/gold"
     (models / "fct_orders.yaml").rename(models / "fct_orders.yml")
 
     assert "MATERIALIZED VIEW dev_sales.gold.fct_orders" in compiled(project)
