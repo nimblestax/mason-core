@@ -6,7 +6,7 @@ from pathlib import Path
 from typing import Any
 
 from mason.diagnostics import Diagnostic, error
-from mason.kinds import IN_DOMAINS, platform
+from mason.kinds import IN_DOMAINS, model, platform
 from mason.kinds.base import IDENTIFIER, InDomain, config_files
 from mason.kinds.model import Model
 from mason.kinds.platform import Platform
@@ -30,22 +30,11 @@ def load(root: Path) -> Project:
     problems = _unlisted_domain_folders(root, contract.domains)
     for domain in contract.domains:
         for kind in IN_DOMAINS:
-            folder = root / "domains" / domain / kind.FOLDER
-            files, duplicates = _one_per_name(root, config_files(folder))
-            problems += duplicates
-            # `Any`, because each Kind loads its own model.
-            documents: list[Any] = []
-            for file in files:
-                if not re.fullmatch(IDENTIFIER, file.stem):
-                    problems.append(_invalid_name(root, file))
-                    continue
-                result = config.read(root, file, kind.KIND)
-                if isinstance(result, list):
-                    problems += result
-                elif isinstance(result, InDomain):
-                    documents.append(result.at(file))
-            problems += kind.problems(root, folder, documents)
-            found[kind.KIND] += documents
+            kind_folder = root / "domains" / domain / kind.FOLDER
+            for folder in _folders(kind_folder, kind.KIND, contract):
+                documents, found_problems = _read_folder(root, kind_folder, folder, kind)
+                problems += found_problems
+                found[kind.KIND] += documents
     if problems:
         raise config.InvalidConfig(problems)
     return Project(
@@ -55,6 +44,32 @@ def load(root: Path) -> Project:
         tuple(found["seed"]),
         tuple(found["model"]),
     )
+
+
+def _folders(kind_folder: Path, kind: str, contract: Platform) -> list[Path]:
+    """Where a Kind's files are read: Gold Models also sit in a folder per model Layer."""
+    if kind != model.KIND:
+        return [kind_folder]
+    return [kind_folder, *(kind_folder / layer for layer in contract.model_layers)]
+
+
+def _read_folder(
+    root: Path, kind_folder: Path, folder: Path, kind: Any
+) -> tuple[list[Any], list[Diagnostic]]:
+    """One folder's documents, `Any` because each Kind loads its own model, and its problems."""
+    files, problems = _one_per_name(root, config_files(folder))
+    documents: list[Any] = []
+    for file in files:
+        if not re.fullmatch(IDENTIFIER, file.stem):
+            problems.append(_invalid_name(root, file))
+            continue
+        result = config.read(root, file, kind.KIND)
+        if isinstance(result, list):
+            problems += result
+        elif isinstance(result, InDomain):
+            documents.append(result.at(file, kind_folder))
+    problems += kind.problems(root, folder, documents)
+    return documents, problems
 
 
 def _invalid_name(root: Path, file: Path) -> Diagnostic:

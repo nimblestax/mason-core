@@ -13,7 +13,7 @@ from typer.testing import CliRunner
 
 from mason.cli import app
 
-MODEL_SQL = "domains/sales/models/fct_orders.sql"
+MODEL_SQL = "domains/sales/models/gold/fct_orders.sql"
 GENERATED = "build/src/sales/gold/fct_orders.sql"
 
 runner = CliRunner()

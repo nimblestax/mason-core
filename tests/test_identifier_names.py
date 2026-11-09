@@ -42,8 +42,8 @@ def copy(project: Path, old: str, new: str) -> None:
         (f"{SOURCES}/orders.yaml", f"{SOURCES}/web-events.yaml", "web_events.yaml"),
         (f"{SOURCES}/orders.yaml", f"{SOURCES}/2024 orders.yaml", "_2024_orders.yaml"),
         (
-            "domains/sales/models/dim_date.yaml",
-            "domains/sales/models/dim.dates.yaml",
+            "domains/sales/models/gold/dim_date.yaml",
+            "domains/sales/models/gold/dim.dates.yaml",
             "dim_dates.yaml",
         ),
     ],

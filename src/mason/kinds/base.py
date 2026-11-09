@@ -48,11 +48,13 @@ class InDomain(BaseModel):
     model_config = STRICT
 
     _config_file: Path = PrivateAttr()
+    _kind_folder: Path = PrivateAttr()
 
-    def at(self, config_file: Path) -> Self:
-        """This file, knowing it was read from `config_file`, in `domains/<domain>/<folder>/`."""
+    def at(self, config_file: Path, kind_folder: Path) -> Self:
+        """This file, read from `config_file` somewhere under `domains/<domain>/<kind_folder>/`."""
         located = self.model_copy()
         located._config_file = config_file
+        located._kind_folder = kind_folder
         return located
 
     @property
@@ -61,7 +63,12 @@ class InDomain(BaseModel):
 
     @property
     def domain(self) -> str:
-        return self._config_file.parent.parent.name
+        return self._kind_folder.parent.name
+
+    @property
+    def folders(self) -> tuple[str, ...]:
+        """The folders between the Kind's folder and this file, outermost first."""
+        return self._config_file.parent.relative_to(self._kind_folder).parts
 
     @property
     def name(self) -> str:

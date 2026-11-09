@@ -13,7 +13,7 @@ from mason.cli import app
 from mason.names import LogicalName
 
 ORDERS = LogicalName("sales", "silver", "orders")
-MODEL_SQL = "domains/sales/models/fct_orders.sql"
+MODEL_SQL = "domains/sales/models/gold/fct_orders.sql"
 
 runner = CliRunner()
 

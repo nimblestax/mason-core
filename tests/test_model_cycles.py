@@ -8,7 +8,7 @@ from typer.testing import CliRunner
 
 from mason.cli import app
 
-MODELS = "domains/sales/models"
+MODELS = "domains/sales/models/gold"
 
 runner = CliRunner()
 

@@ -289,7 +289,7 @@ def test_a_gold_model_may_read_a_quarantine_table_by_logical_name(project: Path)
         project,
         "silver:\n  expectations:\n    - name: positive_amount\n      expect: amount > 0\n",
     )
-    model = project / "domains/sales/models/fct_orders.sql"
+    model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text("SELECT * FROM sales.silver.orders_quarantine")
 
     assert mason(project, "validate").exit_code == 0, mason(project, "validate").output

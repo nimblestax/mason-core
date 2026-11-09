@@ -54,7 +54,7 @@ LANDED_AS_JSON = (
 )
 COUNTRIES = "domains/sales/seeds/countries.yaml"
 COUNTRIES_CSV = "domains/sales/seeds/countries.csv"
-FCT_ORDERS = "domains/sales/models/fct_orders.sql"
+FCT_ORDERS = "domains/sales/models/gold/fct_orders.sql"
 RECOVERY_GUIDE = "[Recover from a failed refresh](../../guides/recover-from-a-failed-refresh.md)"
 COUNTRIES_CONFIG = "kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  code: STRING\n"
 # `mason.platform.yaml` as `mason init` writes it, up to `domains`, for examples that add one.
@@ -182,7 +182,11 @@ RULES = {
         " names the SQL. Mason reports a SQL file on its own rather than skipping it, so a model"
         " can't silently drop out of a deploy.",
         example=Example(
-            {"domains/sales/models/fct_returns.sql": "SELECT order_id\nFROM sales.silver.orders\n"}
+            {
+                "domains/sales/models/gold/fct_returns.sql": (
+                    "SELECT order_id\nFROM sales.silver.orders\n"
+                )
+            }
         ),
         fix="Add a config file with the same name beside it, with `kind: model`, `version: 1`"
         " and `sql` naming the SQL file.",
@@ -194,7 +198,7 @@ RULES = {
         " is nothing to build.",
         example=Example(
             {
-                "domains/sales/models/fct_returns.yaml": "kind: model\nversion: 1\n"
+                "domains/sales/models/gold/fct_returns.yaml": "kind: model\nversion: 1\n"
                 "sql: fct_returns.sql\n"
             }
         ),

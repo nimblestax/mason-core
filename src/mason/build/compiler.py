@@ -16,7 +16,6 @@ def generated_files(project: Project) -> dict[Path, str]:
     """Generated code by path relative to the package, using placeholders."""
     files: dict[Path, str] = {}
     bronze_layer, silver_layer = project.platform.source_layers
-    gold_layer = project.platform.model_layers[-1]
     for item in project.sources:
         bronze = names.placeholders(LogicalName(item.domain, bronze_layer, item.name))
         silver = names.placeholders(LogicalName(item.domain, silver_layer, item.name))
@@ -31,7 +30,8 @@ def generated_files(project: Project) -> dict[Path, str]:
             item, target
         )
     for item in project.models:
-        target = names.placeholders(LogicalName(item.domain, gold_layer, item.name))
+        layer = item.layer(project.platform.model_layers)
+        target = names.placeholders(LogicalName(item.domain, layer, item.name))
         path = Path("src") / item.domain / "gold" / f"{item.name}.sql"
         query = sql.escape_placeholders(item.query)
         files[path] = model.generate(item, target, sql.rewrite(query, names.placeholders))

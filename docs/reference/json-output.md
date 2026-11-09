@@ -20,7 +20,7 @@ Every `mason` command accepts `--json`. It prints one envelope on stdout and not
       "rule": "MSN201",
       "name": "unresolved-logical-name",
       "severity": "error",
-      "file": "domains/sales/models/fct_orders.sql",
+      "file": "domains/sales/models/gold/fct_orders.sql",
       "line": null,
       "message": "sales.silver.nope isn't a table in this project.",
       "fix": "Declare a Source, Seed or Gold Model with this name, or correct the Logical Name.",

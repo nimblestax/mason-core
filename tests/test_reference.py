@@ -205,7 +205,7 @@ def test_the_json_page_documents_the_envelope_and_links_every_command_and_rule(
     reference.write(tmp_path / "docs")
     monkeypatch.chdir(tmp_path)
     CliRunner().invoke(app, ["init"])
-    (tmp_path / "domains/sales/models/fct_orders.sql").write_text("SELECT * FROM a.b.c")
+    (tmp_path / "domains/sales/models/gold/fct_orders.sql").write_text("SELECT * FROM a.b.c")
 
     envelope = json.loads(CliRunner().invoke(app, ["validate", "--json"]).stdout)
 

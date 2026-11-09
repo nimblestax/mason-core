@@ -6,8 +6,8 @@ environments:
   dev:
     host: {host}
 naming:
-  catalog: "{{env}}_{{domain}}"
-  schema: "{{layer}}"
+  catalog: "{catalog}"
+  schema: "{schema}"
   layers:
     sources: [bronze, silver]
     models: [gold]

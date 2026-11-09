@@ -15,6 +15,7 @@ $ mason init [OPTIONS]
 | --- | --- | --- | --- |
 | `--ci` | `github` | `github` | CI provider to write files for. |
 | `--host` | text | `https://your-workspace.cloud.databricks.com` | Workspace URL. |
+| `--naming-style` | `domain-catalogs`, `layer-catalogs`, `environment-catalogs` |  | Where tables live. Asked at a terminal when left out; otherwise domain-catalogs. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
@@ -33,3 +34,6 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `project` | string | The folder the project was created in. |
+| `naming_style` | string | The Naming Style its patterns were written from. |
+| `catalogs` | array of string | The catalogs to create before deploying. |
+| `schemas` | array of string | The schemas to create before deploying, as `catalog.schema`. |

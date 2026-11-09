@@ -168,6 +168,7 @@ name = "mason-databricks"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
+    { name = "click" },
     { name = "pydantic" },
     { name = "pyyaml" },
     { name = "sqlglot" },
@@ -186,6 +187,7 @@ dev = [
 
 [package.metadata]
 requires-dist = [
+    { name = "click", specifier = ">=8.3" },
     { name = "pydantic", specifier = ">=2.14.2" },
     { name = "pyyaml", specifier = ">=6.0.3" },
     { name = "sqlglot", specifier = "==26.*" },

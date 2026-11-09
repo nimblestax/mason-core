@@ -3,6 +3,7 @@
 import re
 from dataclasses import dataclass
 
+from mason.kinds.platform import Platform
 from mason.kinds.source import Source
 from mason.load.project import Project
 from mason.statements import escaped
@@ -57,6 +58,21 @@ def settings(project: Project, env: str) -> dict[str, str]:
         # Escaped, because generated code substitutes it between the quotes of a string literal.
         values[_path_setting(source)] = escaped(source.path_in(env))
     return values
+
+
+def platform_objects(platform: Platform) -> tuple[list[str], list[str]]:
+    """Every catalog, and every schema as `catalog.schema`, the project's tables need, in
+    Environment, Domain and Layer order."""
+    catalogs: dict[str, None] = {}
+    schemas: dict[str, None] = {}
+    for env in platform.hosts:
+        for domain in platform.domains:
+            for layer in (*platform.source_layers, *platform.model_layers):
+                parts = {"env": env, "domain": domain, "layer": layer}
+                catalog = platform.naming.catalog_pattern.format(**parts)
+                catalogs[catalog] = None
+                schemas[f"{catalog}.{platform.naming.schema_pattern.format(**parts)}"] = None
+    return list(catalogs), list(schemas)
 
 
 def logical_name_for(project: Project, real: LogicalName) -> LogicalName | None:
