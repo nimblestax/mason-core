@@ -24,7 +24,7 @@ def mason(project: Path, *args: str):
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    assert mason(tmp_path, "init").exit_code == 0
+    assert runner.invoke(app, ["init", str(tmp_path)]).exit_code == 0
     return tmp_path
 
 
@@ -59,9 +59,9 @@ def test_validate_prints_an_envelope_with_the_rule_id_and_exits_1(project: Path)
     ("command", "expected"),
     [
         (
-            ["init"],
+            ["init", "kettle"],
             {
-                "project": ".",
+                "project": "kettle",
                 "naming_style": "domain-catalogs",
                 "catalogs": ["dev_sales"],
                 "schemas": ["dev_sales.bronze", "dev_sales.silver", "dev_sales.gold"],
@@ -203,7 +203,7 @@ def test_a_crash_keeps_the_exit_code_contract(tmp_path: Path, as_json: bool):
     in_the_way.write_text("not a folder")
     flags = ["--json"] if as_json else []
 
-    result = mason(in_the_way, "init", *flags)
+    result = runner.invoke(app, ["init", str(in_the_way), *flags])
 
     assert result.exit_code == 2
     assert "MSN905" in result.stdout
@@ -268,6 +268,7 @@ REGISTERED_RULES = {
     "MSN906": "pipeline-column-not-found",
     "MSN907": "expectation-failed",
     "MSN908": "pipeline-failed",
+    "MSN909": "project-already-exists",
 }
 
 
@@ -408,8 +409,9 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 
 def test_a_new_rule_must_be_tested_here():
-    """The tests above, and the refresh failure tests, cover these by name. A new rule joins one."""
-    usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905"}
+    """The tests above, and the refresh failure and init folder tests, cover these by name. A new
+    rule joins one."""
+    usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905", "MSN909"}
     refresh_failures = {"MSN906", "MSN907", "MSN908"}
 
     assert set(RULES) == set(INVALID_PROJECTS) | usage_and_environment | refresh_failures

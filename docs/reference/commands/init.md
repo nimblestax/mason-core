@@ -1,13 +1,19 @@
 ---
 title: mason init
-description: Create a working project.
+description: Create a working project in a folder, by default the current one.
 generated: true
 mason_version: 0.1.0
 ---
 
 ```console
-$ mason init [OPTIONS]
+$ mason init [<folder>] [OPTIONS]
 ```
+
+## Arguments
+
+| Argument | Meaning |
+| --- | --- |
+| `folder` | The folder to create the project in, made if missing. Its name is the project's name. |
 
 ## Options
 
@@ -16,7 +22,6 @@ $ mason init [OPTIONS]
 | `--ci` | `github` | `github` | CI provider to write files for. |
 | `--host` | text | `https://your-workspace.cloud.databricks.com` | Workspace URL. |
 | `--naming-style` | `domain-catalogs`, `layer-catalogs`, `environment-catalogs` |  | Where tables live. Asked at a terminal when left out; otherwise domain-catalogs. |
-| `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
 ## Exit codes

@@ -19,7 +19,7 @@ def mason(project: Path, *args: str):
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
     """The project `mason init` writes, with `finance` and `shared` Domains beside `sales`."""
-    assert mason(tmp_path, "init").exit_code == 0
+    assert runner.invoke(app, ["init", str(tmp_path)]).exit_code == 0
     platform = tmp_path / "mason.platform.yaml"
     platform.write_text(
         platform.read_text().replace("  - sales\n", "  - sales\n  - finance\n  - shared\n")

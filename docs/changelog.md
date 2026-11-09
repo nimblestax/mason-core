@@ -7,6 +7,11 @@ Every release of Mason, newest first. Each section is also that release's notes 
 
 Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor release, such as 0.2.0, may change config or commands in ways that need edits to your project, and its section here says what to change. A patch release, such as 0.2.1, never does.
 
+## Unreleased
+
+- `mason init` takes the project folder as an argument, `mason init sales-platform`, and creates it. With no folder it uses the current one. `mason init --project <folder>` is gone: write `mason init <folder>` instead. The other commands keep `--project`.
+- `mason init` refuses a folder that already holds `mason.platform.yaml`, with [`MSN909`](reference/rules/msn909.md), and writes nothing. Before, it replaced the Platform Contract and every starter file.
+
 ## 0.1.0
 
 The first release. Install it into your project with `uv add --dev mason-databricks`.

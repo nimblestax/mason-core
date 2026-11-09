@@ -61,7 +61,7 @@ Each diagnostic in `diagnostics` is one problem found.
 
 Each command's page describes its `result`.
 
-- [`mason init`](commands/init.md): Create a working project.
+- [`mason init`](commands/init.md): Create a working project in a folder, by default the current one.
 - [`mason validate`](commands/validate.md): Check config and SQL references, with no workspace.
 - [`mason schema`](commands/schema.md): Print a Kind's fields from the installed Mason. Needs no project.
 - [`mason compile`](commands/compile.md): Write generated code, or print it for one Environment.
@@ -123,6 +123,7 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN906`](rules/msn906.md) | `pipeline-column-not-found` | The refresh failed because a pipeline names a column its table doesn't have, often an Expectation on a column bronze doesn't have yet. |
 | [`MSN907`](rules/msn907.md) | `expectation-failed` | The refresh failed because a row broke an Expectation whose `action` is `fail`. |
 | [`MSN908`](rules/msn908.md) | `pipeline-failed` | The refresh failed with another pipeline error. The message is the pipeline's own. |
+| [`MSN909`](rules/msn909.md) | `project-already-exists` | `mason init` was run in a folder that already holds `mason.platform.yaml`. |
 
 `mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project.
 

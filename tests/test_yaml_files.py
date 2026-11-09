@@ -12,7 +12,7 @@ runner = CliRunner()
 
 
 def test_init_and_compile_write_no_yml_file(tmp_path: Path):
-    assert runner.invoke(app, ["init", "--ci", "github", "--project", str(tmp_path)]).exit_code == 0
+    assert runner.invoke(app, ["init", str(tmp_path), "--ci", "github"]).exit_code == 0
     assert runner.invoke(app, ["compile", "--project", str(tmp_path)]).exit_code == 0
 
     written = {file.relative_to(tmp_path).as_posix() for file in tmp_path.rglob("*.y*ml")}

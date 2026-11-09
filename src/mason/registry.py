@@ -616,4 +616,13 @@ RULES = {
         fix="Fix the cause, then deploy again. The pipeline's event log in the workspace has"
         " more.",
     ),
+    "MSN909": Rule(
+        "project-already-exists",
+        checks="`mason init` was run in a folder that already holds `mason.platform.yaml`.",
+        why="`mason init` writes a new project. Writing it over an existing one would replace"
+        " the Platform Contract and every starter file you've edited, so it writes nothing"
+        " instead. Other files in the folder are fine, so a new Git repo with a README works.",
+        example=Example(command="mason init"),
+        fix="Run `mason init` in another folder, or give it one, as `mason init <folder>`.",
+    ),
 }

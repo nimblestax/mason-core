@@ -30,7 +30,7 @@ def mason(project: Path, *args: str):
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    assert mason(tmp_path, "init").exit_code == 0
+    assert runner.invoke(app, ["init", str(tmp_path)]).exit_code == 0
     (tmp_path / SEEDS).mkdir()
     return tmp_path
 
