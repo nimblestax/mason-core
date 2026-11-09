@@ -2,7 +2,7 @@
 title: Gold Model
 description: A dataset built from a SQL file that reads Logical Names.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 ---
 
 A file with `kind: model`, at version 1. `mason schema model` prints the same fields from the Mason you installed.

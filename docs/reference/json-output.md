@@ -2,7 +2,7 @@
 title: JSON output
 description: The envelope every command prints with --json, its exit codes and its rule IDs.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 redirects:
 - json-output
 ---
@@ -12,7 +12,7 @@ Every `mason` command accepts `--json`. It prints one envelope on stdout and not
 ```json
 {
   "schema": "mason.validate/1",
-  "mason_version": "0.1.0",
+  "mason_version": "0.2.0",
   "ok": false,
   "result": {},
   "diagnostics": [

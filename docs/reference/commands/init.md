@@ -2,7 +2,7 @@
 title: mason init
 description: Create a working project in a folder, by default the current one.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 ---
 
 ```console

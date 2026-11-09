@@ -2,7 +2,7 @@
 title: mason schema
 description: Print a Kind's fields from the installed Mason. Needs no project.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 ---
 
 ```console

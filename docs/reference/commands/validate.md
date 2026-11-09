@@ -2,7 +2,7 @@
 title: mason validate
 description: Check config and SQL references, with no workspace.
 generated: true
-mason_version: 0.1.0
+mason_version: 0.2.0
 ---
 
 ```console
