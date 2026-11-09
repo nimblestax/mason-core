@@ -46,6 +46,7 @@ class Query:
     """What a Gold Model's SQL reads, and what in it can't be read as a Logical Name."""
 
     reads: dict[LogicalName, Found] = field(default_factory=dict)  # Each as first written.
+    streams: dict[LogicalName, Found] = field(default_factory=dict)  # Read with `STREAM(...)`.
     unqualified: list[Found] = field(default_factory=list)
     computed: list[Found] = field(default_factory=list)
     file_reads: list[Found] = field(default_factory=list)
@@ -76,16 +77,19 @@ def parse(sql: str) -> Query:
         if _is_computed(table):
             query.computed.append(Found(table.this.sql(DIALECT), line))
             continue
-        parts = _stream_parts(table)
-        function = None if parts else _function(table)
+        streamed = _stream_parts(table)
+        function = None if streamed else _function(table)
         if function:
             if function.lower() not in GENERATORS:
                 query.file_reads.append(Found(function, line))
             continue
-        parts = parts or table.parts
+        parts = streamed or table.parts
         written = Found(".".join(part.name for part in parts), line)
         if len(parts) == 3:
-            query.reads.setdefault(LogicalName(*(part.name for part in parts)), written)
+            name = LogicalName(*(part.name for part in parts))
+            query.reads.setdefault(name, written)
+            if streamed:
+                query.streams.setdefault(name, written)
         elif _is_file_path(parts):
             file_format, path = parts
             query.file_reads.append(Found(f"{file_format.name}.`{path.name}`", line))

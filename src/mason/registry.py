@@ -57,6 +57,18 @@ COUNTRIES_CSV = "domains/sales/seeds/countries.csv"
 FCT_ORDERS = "domains/sales/models/fct_orders.sql"
 RECOVERY_GUIDE = "[Recover from a failed refresh](../../guides/recover-from-a-failed-refresh.md)"
 COUNTRIES_CONFIG = "kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  code: STRING\n"
+# `mason.platform.yaml` as `mason init` writes it, up to `domains`, for examples that add one.
+PLATFORM_HEAD = (
+    "kind: platform\nversion: 1\nname: shop\nenvironments:\n  dev:\n"
+    "    host: https://your-workspace.cloud.databricks.com\n"
+    'naming:\n  catalog: "{env}_{domain}"\n  schema: "{layer}"\n'
+    "  layers:\n    sources: [bronze, silver]\n    models: [gold]\n"
+)
+INVOICES = "domains/finance/sources/invoices.yaml"
+INVOICES_AS_JSON = (
+    "kind: source\nversion: 1\npath: /Volumes/{env}_finance/bronze/landing/invoices\n"
+    "format: json\n"
+)
 
 # Append only. An ID never changes meaning, and a retired rule stays here so its ID isn't reused.
 RULES = {
@@ -454,6 +466,52 @@ RULES = {
         example=Example({FCT_ORDERS: "SELECT order_id, amount\nFROM sales.gold.fct_orders\n"}),
         fix="Remove one of the reads in the loop, which the diagnostic lists, so each Gold Model"
         " reads only tables built before it.",
+    ),
+    "MSN209": Rule(
+        "cross-domain-read",
+        checks="A Gold Model reads another Domain's gold, or silver that Domain hasn't Exported.",
+        why="Each Domain owns its tables, and only the tables it publishes are read by other"
+        " Domains. A Domain publishes silver by Exporting it, with `export: true`, and its"
+        " gold and the rest of its silver stay its own, free to change. The Shared Domain, the"
+        " Domain called `shared`, holds what every Domain reads, so its gold is the one gold"
+        " other Domains may read."
+        " Reads that only point this way can't form a loop between Domains.",
+        example=Example(
+            {
+                "mason.platform.yaml": f"{PLATFORM_HEAD}domains:\n  - sales\n  - finance\n",
+                INVOICES: INVOICES_AS_JSON,
+                FCT_ORDERS: "SELECT order_id, amount\nFROM finance.silver.invoices\n",
+            }
+        ),
+        fix="Read silver the other Domain has Exported, or ask its owner to Export it. To share"
+        " a Gold Model, move it into the Shared Domain.",
+        principle=DATA_FLOWS_ONE_WAY,
+    ),
+    "MSN210": Rule(
+        "read-against-build-order",
+        checks="A Gold Model reads bronze.",
+        why="Tables are built in a fixed order: bronze, then silver, then gold. Bronze keeps"
+        " every row as it landed, untyped and with duplicates, and only its own silver reads"
+        " it. A Gold Model reads silver, where rows are conformed and checked, so a change to"
+        " bronze reaches gold only through silver.",
+        example=Example({FCT_ORDERS: "SELECT order_id, amount\nFROM sales.bronze.orders\n"}),
+        fix="Read the silver table of the same name, which the diagnostic gives.",
+        principle=DATA_FLOWS_ONE_WAY,
+    ),
+    "MSN211": Rule(
+        "stream-of-upsert-silver",
+        checks="A Gold Model reads silver that has `keys` with `STREAM(...)`.",
+        why="A stream reads only rows added since its last update. Silver with `keys` is"
+        " written by upserts, which change and delete rows in place, so a stream from it fails"
+        " in the pipeline's first update after a change. Read without `STREAM(...)`, the Gold"
+        " Model is a materialized view, which Databricks refreshes incrementally where it can.",
+        example=Example(
+            {
+                ORDERS: f"{LANDED_AS_JSON}silver:\n  keys: [order_id]\n  sequence_by: updated_at\n",
+                FCT_ORDERS: "SELECT order_id, amount\nFROM STREAM(sales.silver.orders)\n",
+            }
+        ),
+        fix="Read the table without `STREAM(...)`, as `FROM sales.silver.orders`.",
     ),
     "MSN901": Rule(
         "usage-error",

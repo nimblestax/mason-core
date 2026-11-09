@@ -15,3 +15,4 @@ A file with `kind: seed`, at version 1. `mason schema seed` prints the same fiel
 | `version` | `1` | yes |  | The schema version of this Kind. |
 | `file` | string | yes |  | The data file, in the same folder as this file. |
 | `columns` | map of name to string | yes |  | Each column's name and SQL type. An empty value in the file is NULL. |
+| `export` | boolean | no | `false` | Whether other Domains' Gold Models and the Shared Domain may read this Seed. A Seed is private to its Domain otherwise. |

@@ -13,6 +13,9 @@ KIND = "platform"
 
 PLACEHOLDERS = ("{env}", "{domain}", "{layer}")
 
+# The reserved Domain that holds what every Domain reads, such as conformed dimensions.
+SHARED_DOMAIN = "shared"
+
 
 class Environment(BaseModel):
     """One Environment's settings."""

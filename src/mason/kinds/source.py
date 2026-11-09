@@ -77,6 +77,13 @@ class SilverV1(BaseModel):
     delete_when: Text | None = Field(
         default=None, description="A SQL condition that marks a change as a delete."
     )
+    export: bool = Field(
+        default=False,
+        description=(
+            "Whether other Domains' Gold Models and the Shared Domain may read this silver table."
+            " Silver is private to its Domain otherwise."
+        ),
+    )
     # A plain default, not a factory, so the schema shows it. Pydantic copies it for each Source.
     expectations: list[ExpectationV1] = Field(
         default=[],
@@ -201,7 +208,7 @@ class SourceV1(InDomain):
         description=(
             "How silver is written, with `keys`, `sequence_by`, `scd` and `delete_when`. "
             "With no keys, it is append-only. `expectations` lists the rules each row must meet,"
-            " which a delete skips."
+            " which a delete skips. `export` lets other Domains read it."
         ),
     )
 

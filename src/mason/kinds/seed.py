@@ -44,6 +44,13 @@ class SeedV1(InDomain):
         json_schema_extra={"additionalProperties": False},
         description="Each column's name and SQL type. An empty value in the file is NULL.",
     )
+    export: bool = Field(
+        default=False,
+        description=(
+            "Whether other Domains' Gold Models and the Shared Domain may read this Seed."
+            " A Seed is private to its Domain otherwise."
+        ),
+    )
 
     @property
     def data_file(self) -> Path:

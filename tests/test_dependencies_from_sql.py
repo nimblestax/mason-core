@@ -180,7 +180,7 @@ def test_a_statement_that_is_not_a_query_fails_with_only_msn203(project: Path, q
         "SELECT * FROM sales.silver.orders",
         "WITH o AS (SELECT * FROM sales.silver.orders) SELECT * FROM o",
         "SELECT order_id FROM sales.silver.orders\n"
-        "UNION ALL SELECT order_id FROM sales.bronze.orders",
+        "UNION ALL SELECT order_id FROM sales.gold.dim_date",
         "(SELECT 1 AS a UNION SELECT 2) EXCEPT SELECT 3",
         "VALUES (1, 'a'), (2, 'b')",
         "SELECT * FROM sales.silver.orders;",
@@ -194,7 +194,7 @@ def test_every_kind_of_query_validates(project: Path, query: str):
     assert result.exit_code == 0, result.output
 
 
-JOINED = "FROM sales.silver.orders o\nJOIN sales.bronze.orders c USING (order_id)"
+JOINED = "FROM sales.silver.orders o\nJOIN sales.gold.dim_date c USING (order_id)"
 
 
 @pytest.mark.parametrize(
@@ -214,7 +214,7 @@ def test_a_hint_is_never_a_read_and_compiles_unchanged(project: Path, hint: str)
     query = f"SELECT {hint} o.order_id\n{JOINED}"
     write_model(project, query)
 
-    assert sql.reads(query) == {ORDERS, LogicalName("sales", "bronze", "orders")}
+    assert sql.reads(query) == {ORDERS, LogicalName("sales", "gold", "dim_date")}
     assert mason(project, "validate", "--json").exit_code == 0
     compiled = mason(project, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
@@ -225,7 +225,7 @@ def test_a_hint_naming_a_cte_validates(project: Path):
     write_model(
         project,
         "WITH recent AS (SELECT * FROM sales.silver.orders)\n"
-        "SELECT /*+ BROADCAST(recent) */ * FROM sales.bronze.orders JOIN recent USING (order_id)",
+        "SELECT /*+ BROADCAST(recent) */ * FROM sales.gold.dim_date JOIN recent USING (order_id)",
     )
 
     assert mason(project, "validate", "--json").exit_code == 0
