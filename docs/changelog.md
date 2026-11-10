@@ -11,6 +11,8 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 
 ## Unreleased
 
+- A gold model that reads `STREAM(...)` compiles to a streaming table. Before, every gold model compiled to a materialized view, so one that streamed passed `mason validate` and failed at deploy. Any other gold model is still a materialized view. No project needs a change. See [How Mason reads a gold model's SQL](concepts/how-mason-reads-a-gold-models-sql.md).
+  - New rule: [`MSN212`](reference/rules/msn212.md) `stream-of-materialized-view`. A stream from a seed, or from a gold model that doesn't stream, fails `mason validate`.
 - Mason brings its own Databricks CLI, version 1.23.0, and never runs the `databricks` on your PATH. It downloads it the first time a command needs it, checks it against its checksum, and caches it. See [The Databricks CLI](concepts/the-databricks-cli.md).
   - `mason --version` prints Mason's version and the CLI version it runs.
   - `mason databricks <arguments>` runs that CLI, so you don't need one of your own.

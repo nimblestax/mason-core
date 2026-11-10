@@ -81,6 +81,13 @@ FROM dev_sales.silver.orders AS o
 JOIN dev_sales.silver.countries AS c
   ON o.country = c.code
 
+CREATE OR REFRESH STREAMING TABLE dev_sales.gold.new_customers AS
+-- Each customer as they arrive, with their country's VAT.
+SELECT c.customer_id, n.vat_rate
+FROM STREAM(dev_sales.silver.customers) AS c
+JOIN dev_sales.silver.countries AS n
+  ON c.country = n.code
+
 CREATE OR REFRESH MATERIALIZED VIEW dev_sales.gold.revenue AS
 SELECT region, SUM(amount) AS revenue
 FROM dev_sales.gold.fct_orders

@@ -63,8 +63,11 @@ def problems(root: Path, folder: Path, models: list[Model]) -> list[Diagnostic]:
     return missing + unnamed
 
 
-def generate(model: Model, target: str, sql: str) -> str:
-    return f"CREATE OR REFRESH MATERIALIZED VIEW {target} AS\n{sql}"
+def generate(model: Model, target: str, sql: str, streaming: bool) -> str:
+    """A Gold Model that reads `STREAM(...)` is a streaming table, and any other a materialized
+    view. Databricks refuses a materialized view over a stream."""
+    table = "STREAMING TABLE" if streaming else "MATERIALIZED VIEW"
+    return f"CREATE OR REFRESH {table} {target} AS\n{sql}"
 
 
 def _has_config_beside(sql_file: Path) -> bool:

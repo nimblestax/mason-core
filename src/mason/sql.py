@@ -120,6 +120,11 @@ def reads(sql: str) -> set[LogicalName]:
     return set(parse(sql).reads)
 
 
+def streams(sql: str) -> bool:
+    """Whether the query reads any table with `STREAM(...)`, which makes it a streaming table."""
+    return bool(parse(sql).streams)
+
+
 def _one_statement(sql: str) -> exp.Expression:
     try:
         statements = [tree for tree in sqlglot.parse(sql, dialect=DIALECT) if tree]
