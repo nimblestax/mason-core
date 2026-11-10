@@ -156,8 +156,30 @@ def test_a_rule_page_links_the_principle_behind_it_where_there_is_one(tmp_path: 
     reference.write(tmp_path)
 
     enforced = (tmp_path / "reference/rules/msn201.md").read_text()
-    assert "(https://nimblestax.com/way/every-catalog-is-one-domain)" in enforced
+    assert "(https://nimblestax.com/way/code-names-tables-logically)" in enforced
     assert "nimblestax.com/way" not in (tmp_path / "reference/rules/msn203.md").read_text()
+
+
+# The Way's principles as nimblestax.com publishes them.
+# A renamed principle fails here, not as a dead link.
+PUBLISHED_PRINCIPLES = {
+    "config-over-code",
+    "bronze-is-append-only",
+    "silver-is-typed-and-conformed",
+    "no-row-disappears-silently",
+    "data-flows-one-way",
+    "code-names-tables-logically",
+    "every-change-goes-through-a-pull-request",
+    "prod-is-a-promotion",
+    "nothing-is-destroyed-by-accident",
+}
+
+
+@pytest.mark.parametrize("code", [code for code, rule in RULES.items() if rule.principle])
+def test_a_rule_links_a_principle_the_way_still_publishes(code: str):
+    principle = RULES[code].principle
+    assert principle is not None
+    assert principle.slug in PUBLISHED_PRINCIPLES
 
 
 def commands() -> dict[str, Any]:

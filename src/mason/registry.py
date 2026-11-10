@@ -34,18 +34,17 @@ class Rule:
     principle: Principle | None = None
 
 
-EVERY_CATALOG_IS_ONE_DOMAIN = Principle(
-    "Every catalog is one domain in one environment", "every-catalog-is-one-domain"
+CODE_NAMES_TABLES_LOGICALLY = Principle(
+    "Code names tables logically; Mason resolves the environment", "code-names-tables-logically"
 )
 DATA_FLOWS_ONE_WAY = Principle("Data flows one way", "data-flows-one-way")
 SILVER_IS_TYPED = Principle(
-    "Silver is typed, deduplicated and conformed", "silver-is-typed-and-conformed"
+    "Silver is typed, conformed and deduplicated by key", "silver-is-typed-and-conformed"
 )
-EXPECTATIONS_GUARD_ROWS = Principle(
-    "Expectations guard rows; tests guard datasets", "expectations-guard-rows"
-)
+NO_ROW_DISAPPEARS_SILENTLY = Principle("No row disappears silently", "no-row-disappears-silently")
 EVERY_CHANGE_IS_REVIEWED = Principle(
-    "Every change goes through a pull request", "every-change-goes-through-a-pull-request"
+    "Every change goes through a pull request, with a Plan a human reviews",
+    "every-change-goes-through-a-pull-request",
 )
 
 ORDERS = "domains/sales/sources/orders.yaml"
@@ -290,7 +289,7 @@ RULES = {
         ),
         fix="Write `expect` as one condition on the row's own columns, such as `amount > 0`. A"
         " rule across rows is a Test.",
-        principle=EXPECTATIONS_GUARD_ROWS,
+        principle=NO_ROW_DISAPPEARS_SILENTLY,
     ),
     "MSN117": Rule(
         "invalid-name",
@@ -417,7 +416,7 @@ RULES = {
         " CTE is reported too, because Mason can't tell which table it means.",
         example=Example({FCT_ORDERS: "SELECT order_id, amount\nFROM sales.silver.order\n"}),
         fix="Declare a Source, Seed or Gold Model with this name, or correct the Logical Name.",
-        principle=EVERY_CATALOG_IS_ONE_DOMAIN,
+        principle=CODE_NAMES_TABLES_LOGICALLY,
     ),
     "MSN202": Rule(
         "duplicate-table",
@@ -466,7 +465,7 @@ RULES = {
         example=Example({FCT_ORDERS: "SELECT order_id, amount\nFROM dev_sales.silver.orders\n"}),
         fix="Use the table's Logical Name, which the diagnostic gives. If no table in the project"
         " has that name, declare a Source, Seed or Gold Model for it.",
-        principle=EVERY_CATALOG_IS_ONE_DOMAIN,
+        principle=CODE_NAMES_TABLES_LOGICALLY,
     ),
     "MSN206": Rule(
         "file-read",
@@ -635,7 +634,7 @@ RULES = {
         ),
         fix="Correct the rule if the row is fine, or change its `action` to `quarantine` or"
         f" `warn`, then deploy again. See {RECOVERY_GUIDE}.",
-        principle=EXPECTATIONS_GUARD_ROWS,
+        principle=NO_ROW_DISAPPEARS_SILENTLY,
     ),
     "MSN908": Rule(
         "pipeline-failed",
