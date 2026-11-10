@@ -13,6 +13,9 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 
 - A gold model that reads `STREAM(...)` compiles to a streaming table. Before, every gold model compiled to a materialized view, so one that streamed passed `mason validate` and failed at deploy. Any other gold model is still a materialized view. No project needs a change. See [How Mason reads a gold model's SQL](concepts/how-mason-reads-a-gold-models-sql.md).
   - New rule: [`MSN212`](reference/rules/msn212.md) `stream-of-materialized-view`. A stream from a seed, or from a gold model that doesn't stream, fails `mason validate`.
+- `mason init --example kettle` writes Kettle, the fictional tea shop every docs page draws its examples from, with two days of sample data in `data/day-1/` and `data/day-2/`. It prints the commands that upload day 1 to each source's path in dev. Day 2 adds new orders, a customer who moved, a deleted customer, a price change and an order that goes to quarantine. Kettle ships inside Mason, so it always matches the version you have installed. See [`mason init`](reference/commands/init.md).
+  - An example Mason doesn't ship fails with [`MSN916`](reference/rules/msn916.md) `unknown-example`, which lists the examples. It exits 2.
+- `mason init` lists the Volumes the project's sources read in dev with the catalogs and schemas to create, and in `volumes` in its JSON result.
 - Mason brings its own Databricks CLI, version 1.23.0, and never runs the `databricks` on your PATH. It downloads it the first time a command needs it, checks it against its checksum, and caches it. See [The Databricks CLI](concepts/the-databricks-cli.md).
   - `mason --version` prints Mason's version and the CLI version it runs.
   - `mason databricks <arguments>` runs that CLI, so you don't need one of your own.

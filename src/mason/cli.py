@@ -246,6 +246,15 @@ class Created(BaseModel):
     skills_left_alone: list[str] = Field(
         description="The Mason Skill folders that already existed, which were left as they were."
     )
+    volumes: list[str] = Field(
+        description="The Volumes the Sources read in dev, as `catalog.schema.volume`, to create"
+        " before deploying."
+    )
+    example: str | None = Field(description="The example written, or `null` for a new project.")
+    uploads: list[str] = Field(
+        description="With `--example`, the commands that upload day 1's data to each Source's"
+        " path in dev."
+    )
 
 
 @command()
@@ -267,23 +276,38 @@ def init(
             " `.claude/skills/`.",
         ),
     ] = Skills.all,
+    example: Annotated[
+        str | None,
+        typer.Option(
+            "--example",
+            help="Write an example project with its sample data, such as `kettle`, instead of"
+            " a new one.",
+            show_default=False,
+        ),
+    ] = None,
     folder: Annotated[
         Path,
         typer.Argument(
             help="The folder to create the project in, made if missing. Its name is the"
-            " project's name.",
+            " project's name, except for an example, which keeps its own.",
             show_default=False,
         ),
     ] = Path("."),
 ) -> Outcome[Created]:
     """Create a working project in a folder, by default the current one."""
+    if example:
+        scaffold.refuse_unknown_example(example)
     scaffold.refuse_existing_project(folder)  # Before the question, so no answer is wasted.
     style = naming_style or (
         _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
     )
-    scaffold.write_project(folder, host, ci.value, style.value)
+    if example:
+        scaffold.write_example(folder, example, host, ci.value, style.value)
+    else:
+        scaffold.write_project(folder, host, ci.value, style.value)
     installed = skills.install(folder) if with_skills == Skills.all else skills.Installed([], [])
-    catalogs, schemas = names.platform_objects(project.load(folder).platform)
+    loaded = project.load(folder)
+    catalogs, schemas = names.platform_objects(loaded.platform)
     created = Created(
         project=str(folder),
         naming_style=style.value,
@@ -291,8 +315,35 @@ def init(
         schemas=schemas,
         skills=installed.written,
         skills_left_alone=installed.left_alone,
+        volumes=_volumes(loaded),
+        example=example,
+        uploads=_uploads(loaded, folder) if example else [],
     )
     return Outcome(_created_text(created), created, skills.ignored(folder))
+
+
+DEV = "dev"
+FIRST_DAY = Path("data/day-1")
+
+
+def _volumes(loaded: project.Project) -> list[str]:
+    """Each Volume a Source's files land in, in dev."""
+    found: dict[str, None] = {}
+    for source in loaded.sources:
+        parts = source.path_in(DEV).split("/")
+        if len(parts) > 4 and parts[1] == "Volumes":
+            found[".".join(parts[2:5])] = None
+    return list(found)
+
+
+def _uploads(loaded: project.Project, folder: Path) -> list[str]:
+    """For each Source with sample data, the command that lands day 1 at its path in dev."""
+    return [
+        f"mason databricks fs cp --recursive {(FIRST_DAY / source.name).as_posix()}"
+        f" dbfs:{source.path_in(DEV)}"
+        for source in loaded.sources
+        if (folder / FIRST_DAY / source.name).is_dir()
+    ]
 
 
 def _at_a_terminal() -> bool:
@@ -326,6 +377,15 @@ def _created_text(created: Created) -> str:
         "  Schemas:",
         *(f"    {schema}" for schema in created.schemas),
     ]
+    if created.volumes:
+        lines += ["  Volumes:", *(f"    {volume}" for volume in created.volumes)]
+    if created.uploads:
+        lines += [
+            "",
+            f"Then upload day 1's data from {created.project}:",
+            *(f"  {upload}" for upload in created.uploads),
+            "After the first deploy, upload data/day-2 the same way to see changes arrive.",
+        ]
     if created.skills:
         lines += ["", "Wrote Mason Skills for coding agents:", *(f"  {s}" for s in created.skills)]
     if created.skills_left_alone:

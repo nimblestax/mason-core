@@ -2,6 +2,7 @@
 
 import json
 import re
+from collections.abc import Callable
 from importlib.metadata import version
 from importlib.resources import files
 from importlib.resources.abc import Traversable
@@ -53,9 +54,54 @@ def write_project(root: Path, host: str, ci: str, naming_style: str) -> None:
     )
     values = {"host": host, "name": name, "style": naming_style, "styles": styles, "path": path}
     templates = files("mason") / "templates"
-    _copy(templates / "project", root, values)
-    _copy(templates / "ci" / ci, root, {})
+    _copy(templates / "project", root, lambda name, text: _filled_in(name, text, values))
+    _copy(templates / "ci" / ci, root)
     _write_schemas(root)
+
+
+def examples() -> list[str]:
+    """The example projects `mason init --example` writes, by name."""
+    return sorted(entry.name for entry in (files("mason") / "examples").iterdir() if entry.is_dir())
+
+
+def refuse_unknown_example(example: str) -> None:
+    known = examples()
+    if example not in known:
+        found = error(
+            "MSN916",
+            "",
+            f"`{example}` isn't an example Mason ships.",
+            f"Use one of: {', '.join(known)}.",
+        )
+        raise Failure([found], USAGE_OR_ENVIRONMENT)
+
+
+def write_example(root: Path, example: str, host: str, ci: str, naming_style: str) -> None:
+    """An example is written as a working project in the dev Environment, under the
+    domain-catalogs Naming Style, so its files can be shown in the docs as they are. Writing
+    one under another style moves its tables and the Volume its Sources read."""
+
+    def restyled(name: str, text: str) -> str:
+        text = text.replace(PLACEHOLDER_HOST, host)
+        text = text.replace("style: domain-catalogs", f"style: {naming_style}")
+        return VOLUME_IN_BRONZE.sub(lambda found: _volume(naming_style, found["domain"]), text)
+
+    _copy(files("mason") / "examples" / example, root, restyled)
+    _copy(files("mason") / "templates" / "ci" / ci, root)
+    _write_schemas(root)
+
+
+# A Volume in a Domain's bronze schema, as an example's Source paths name it.
+VOLUME_IN_BRONZE = re.compile(r"/Volumes/\{env\}_(?P<domain>\w+)/bronze/")
+
+
+def _volume(naming_style: str, domain: str) -> str:
+    catalog, schema = names.real_names(naming_style, "{env}", domain, "bronze")
+    return f"/Volumes/{catalog}/{schema}/"
+
+
+def _filled_in(name: str, text: str, values: dict[str, str]) -> str:
+    return text.format(**values) if name in FILLED_IN else text
 
 
 def _write_schemas(root: Path) -> None:
@@ -67,15 +113,16 @@ def _write_schemas(root: Path) -> None:
             (folder / f"{kind}.v{number}.json").write_text(json.dumps(schema, indent=2) + "\n")
 
 
-def _copy(template: Traversable, target: Path, values: dict[str, str]) -> None:
+def _copy(
+    template: Traversable, target: Path, change: Callable[[str, str], str] = lambda _, text: text
+) -> None:
+    """Copies a folder of text files, passing each file's name and text through `change`."""
     target.mkdir(parents=True, exist_ok=True)
     for entry in template.iterdir():
         if entry.is_dir():
-            _copy(entry, target / entry.name, values)
+            _copy(entry, target / entry.name, change)
             continue
-        text = entry.read_text()
-        if entry.name in FILLED_IN:
-            text = text.format(**values)
+        text = change(entry.name, entry.read_text())
         destination = ".gitignore" if entry.name == "gitignore" else entry.name
         (target / destination).write_text(
             text.replace("MASON_VERSION", version("mason-databricks"))
