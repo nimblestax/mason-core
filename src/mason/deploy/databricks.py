@@ -1,6 +1,7 @@
 """The Databricks boundary: every workspace call goes through here."""
 
 import json
+import os
 import subprocess
 import sys
 from collections import deque
@@ -64,6 +65,14 @@ class DatabricksCli:
             errors.extend(failed_update_errors(events))
         return errors
 
+    def catalogs(self, host: str) -> set[str]:
+        listed = self._json(None, "catalogs", "list", "--output", "json", host=host)
+        return {catalog["name"] for catalog in listed}
+
+    def schemas(self, host: str, catalog: str) -> set[str]:
+        listed = self._json(None, "schemas", "list", catalog, "--output", "json", host=host)
+        return {schema["name"] for schema in listed}
+
     def _stream(self, package: Path, *arguments: str) -> None:
         command = [self._executable, *arguments]
         last_lines: deque[str] = deque(maxlen=KEPT_LINES)
@@ -78,9 +87,13 @@ class DatabricksCli:
                 f"databricks {' '.join(arguments)} failed. Its last lines:\n{shown}"
             )
 
-    def _json(self, package: Path, *arguments: str) -> Any:
+    def _json(self, package: Path | None, *arguments: str, host: str | None = None) -> Any:
+        """Run from a bundle `package`, which names each target's workspace, or with no package
+        against `host`, whatever workspace the shell points at."""
         command = [self._executable, *arguments]
-        with _start(command, package, stdout=subprocess.PIPE, stderr=sys.stderr) as cli:
+        env = {**os.environ, "DATABRICKS_HOST": host} if host else None
+        # Its log goes to the stderr this process was started with, so stdout stays Mason's.
+        with _start(command, package, env=env, stdout=subprocess.PIPE, stderr=None) as cli:
             printed = cli.stdout.read() if cli.stdout else ""
         if cli.returncode:
             raise WorkspaceError(f"databricks {' '.join(arguments)} failed.")
@@ -92,7 +105,7 @@ class DatabricksCli:
             ) from failure
 
 
-def _start(command: list[str], package: Path, **streams: Any) -> subprocess.Popen[str]:
+def _start(command: list[str], package: Path | None, **streams: Any) -> subprocess.Popen[str]:
     try:
         return subprocess.Popen(command, cwd=package, text=True, **streams)
     except FileNotFoundError as failure:

@@ -4,7 +4,7 @@ import subprocess
 import sys
 import traceback
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from enum import StrEnum
 from functools import wraps
 from importlib.metadata import version
@@ -19,11 +19,18 @@ from typer.core import TyperGroup
 
 from mason import names, output, scaffold
 from mason.build import compiler
-from mason.check import rules
+from mason.check import platform_objects, rules
 from mason.deploy import deploy as delivery
 from mason.deploy import pinned_cli
 from mason.deploy.databricks import DatabricksCli
-from mason.diagnostics import EXIT_CODES, USAGE_OR_ENVIRONMENT, Diagnostic, Failure, error
+from mason.diagnostics import (
+    EXIT_CODES,
+    USAGE_OR_ENVIRONMENT,
+    Diagnostic,
+    Failure,
+    error,
+    errors,
+)
 from mason.kinds import KINDS, latest_schema, platform
 from mason.load import config, project
 
@@ -108,6 +115,7 @@ class Outcome[Result: BaseModel]:
 
     text: str
     result: Result
+    warnings: list[Diagnostic] = field(default_factory=list)
 
 
 def command(name: str | None = None) -> Callable:
@@ -125,8 +133,13 @@ def command(name: str | None = None) -> Callable:
                 traceback.print_exc()
                 _report_failure(label, as_json, _unexpected(problem))
             if as_json:
-                typer.echo(output.envelope(label, True, outcome.result.model_dump(), []))
+                printed = output.envelope(
+                    label, True, outcome.result.model_dump(), outcome.warnings
+                )
+                typer.echo(printed)
             else:
+                for found in outcome.warnings:
+                    _print(found)
                 typer.echo(outcome.text)
 
         json_parameter = Parameter(
@@ -177,7 +190,8 @@ def _require_environment(loaded: project.Project, env: str) -> None:
 
 def _print(diagnostic: Diagnostic) -> None:
     where = f" {diagnostic.file}" if diagnostic.file else ""
-    typer.echo(f"{diagnostic.rule}{where}: {diagnostic.message}")
+    marker = " (warning)" if diagnostic.severity == "warning" else ""
+    typer.echo(f"{diagnostic.rule}{where}{marker}: {diagnostic.message}")
     typer.echo(f"  Fix: {diagnostic.fix}")
 
 
@@ -268,12 +282,49 @@ class Valid(BaseModel):
 
 
 @command()
-def validate(root: ProjectOption = Path(".")) -> Outcome[Valid]:
-    """Check config and SQL references, with no workspace."""
-    problems = rules.check(project.load(root))
-    if problems:
+def validate(
+    check_platform: Annotated[
+        bool,
+        typer.Option(
+            "--platform",
+            help="Also check, in the Environment's workspace, that the catalogs and schemas"
+            " the project needs exist.",
+        ),
+    ] = False,
+    env: Annotated[
+        str | None,
+        typer.Option(
+            "--env",
+            help="The Environment whose workspace `--platform` checks. Defaults to the default"
+            " Environment.",
+            show_default=False,
+        ),
+    ] = None,
+    root: ProjectOption = Path("."),
+) -> Outcome[Valid]:
+    """Check config and SQL references. With `--platform`, also check the workspace."""
+    if env and not check_platform:
+        raise Failure([_ENV_WITHOUT_PLATFORM], USAGE_OR_ENVIRONMENT)
+    loaded = project.load(root)
+    problems = rules.check(loaded)
+    if check_platform:
+        # One Environment, because each CI stage signs in as that Environment's identity alone.
+        checked = env or loaded.platform.default_environment
+        _require_environment(loaded, checked)
+        problems += platform_objects.check(loaded, checked, DatabricksCli())
+    if errors(problems):
         raise Failure(problems)
-    return Outcome("Valid.", Valid())
+    return Outcome("Valid.", Valid(), warnings=problems)
+
+
+# Plain `validate` is the same in every Environment, so `--env` alone would change nothing.
+_ENV_WITHOUT_PLATFORM = error(
+    "MSN901",
+    "",
+    "`mason validate --env` names the Environment `--platform` checks, and `--platform` is"
+    " missing. Without it, `mason validate` reads no workspace.",
+    "Add `--platform`, such as `mason validate --platform --env dev`, or remove `--env`.",
+)
 
 
 class KindSchema(BaseModel):

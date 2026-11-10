@@ -5,7 +5,14 @@ from datetime import datetime
 from mason.build import bundle, compiler
 from mason.check import rules
 from mason.deploy.databricks import Workspace, WorkspaceError
-from mason.diagnostics import DOCS_ROOT, USAGE_OR_ENVIRONMENT, Diagnostic, Failure, error
+from mason.diagnostics import (
+    DOCS_ROOT,
+    USAGE_OR_ENVIRONMENT,
+    Diagnostic,
+    Failure,
+    error,
+    errors,
+)
 from mason.load.project import Project
 
 RECOVERY_GUIDE = f"{DOCS_ROOT}/guides/recover-from-a-failed-refresh.md"
@@ -16,7 +23,7 @@ class InvalidProject(Failure):
 
 
 def deploy(project: Project, env: str, workspace: Workspace) -> None:
-    problems = rules.check(project)
+    problems = errors(rules.check(project))
     if problems:
         raise InvalidProject(problems)
     package = compiler.write_package(project)
@@ -26,12 +33,12 @@ def deploy(project: Project, env: str, workspace: Workspace) -> None:
         workspace.run_job(package, env, bundle.REFRESH_JOB)
     except WorkspaceError as failure:
         try:
-            errors = workspace.pipeline_errors(package, env, started)
+            messages = workspace.pipeline_errors(package, env, started)
         except WorkspaceError as lookup:
             raise _unexplained(failure, lookup) from failure
-        if not errors:
+        if not messages:
             raise failure
-        found = [refresh_failure(message) for message in errors]
+        found = [refresh_failure(message) for message in messages]
         raise Failure(found, USAGE_OR_ENVIRONMENT) from failure
 
 

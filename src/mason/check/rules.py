@@ -1,9 +1,9 @@
 """Project rules. `mason validate` runs these with no workspace."""
 
 from mason import names, sql
-from mason.diagnostics import Diagnostic, error
+from mason.diagnostics import Diagnostic, error, warning
 from mason.kinds.model import Model
-from mason.kinds.platform import SHARED_DOMAIN
+from mason.kinds.platform import FILE_NAME, SHARED_DOMAIN
 from mason.kinds.seed import Seed
 from mason.kinds.source import Source
 from mason.load.project import Project
@@ -36,6 +36,7 @@ def check(project: Project) -> list[Diagnostic]:
         + _cycles(project, reads)
         + _seeds_named_like_sources(project)
         + _named_like_a_quarantine(project)
+        + _production_shares_a_workspace(project)
     )
 
 
@@ -335,3 +336,30 @@ def _computed(file: str, computed: sql.Found) -> Diagnostic:
         " so every read shows in review.",
         computed.line,
     )
+
+
+# The Environment kept apart from the others, by name until Environments are known by role.
+PRODUCTION = "prod"
+
+
+def _production_shares_a_workspace(project: Project) -> list[Diagnostic]:
+    """One workspace for every Environment works, and prod is then kept apart only by catalogs,
+    identities and grants. That is worth saying, and not worth failing."""
+    hosts = {env: host.rstrip("/").lower() for env, host in project.platform.hosts.items()}
+    if PRODUCTION not in hosts:
+        return []
+    sharing = sorted(
+        env for env, host in hosts.items() if env != PRODUCTION and host == hosts[PRODUCTION]
+    )
+    if not sharing:
+        return []
+    listed = " and ".join(sharing)
+    found = warning(
+        "MSN128",
+        FILE_NAME,
+        f"{PRODUCTION} uses the same workspace as {listed}, so it isn't isolated by workspace."
+        " Only catalogs, CI identities and grants keep it apart.",
+        f"To isolate {PRODUCTION}, give it its own `host` in `environments.{PRODUCTION}`. On one"
+        " workspace, keep each Environment's CI identity and grants separate.",
+    )
+    return [found]

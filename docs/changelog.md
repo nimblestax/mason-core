@@ -17,6 +17,10 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
   - `MASON_DATABRICKS_CLI` points Mason at a CLI you installed yourself, for a machine that can't download one.
   - New rules: MSN910 `databricks-cli-checksum-mismatch`, MSN911 `databricks-cli-unsupported`, MSN912 `databricks-cli-download-failed` and MSN913 `no-databricks-cli-for-platform`. MSN903 `databricks-cli-missing` now means `MASON_DATABRICKS_CLI` names a CLI Mason can't run.
 - The workflows `mason init --ci github` writes no longer install the Databricks CLI.
+- `mason validate --platform` signs in to an environment's workspace and checks that the catalogs and schemas the project needs are there, before a deploy. It checks the default environment, or the one `--env` names. Plain `mason validate` still reads no workspace. See [Naming](concepts/naming.md).
+  - New rules: [`MSN301`](reference/rules/msn301.md) `missing-catalog` and [`MSN302`](reference/rules/msn302.md) `missing-schema`. Each exits 1.
+  - The workflows `mason init --ci github` writes run `mason validate --platform --env dev`. The pull request job now signs in as dev's identity, through the `dev` GitHub environment.
+- When prod uses the same workspace as another environment, `mason validate` warns with [`MSN128`](reference/rules/msn128.md) `production-shares-a-workspace`, and still passes. A diagnostic's `severity` can now be `warning`, and a command that succeeds lists its warnings in `diagnostics`.
 - `mason.platform.yaml` keeps the naming style by name, as `naming.style`, in version 2 of the `platform` Kind. Hand-edited `catalog` and `schema` patterns are no longer accepted. `mason init` writes version 2, with a comment that lists the three styles. See [Naming](concepts/naming.md).
   - A version 1 file still works when its patterns match a style, and Mason reads it as that style. Patterns that match none fail with [`MSN124`](reference/rules/msn124.md) `naming-patterns-not-supported`, which names the closest style.
   - The source layers are always `bronze` and `silver`. A version 1 file that names others fails with [`MSN125`](reference/rules/msn125.md) `source-layers-fixed`.
@@ -28,6 +32,8 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
   - A domain can be a source system, such as `salesforce`, with gold in business domains that read its exported silver.
 
 **What to change:** delete the `databricks/setup-cli` step from `.github/workflows/mason-merge.yaml`. It does no harm, but Mason no longer uses that CLI.
+
+**What to change:** to check the platform in CI, change `mason validate` to `mason validate --platform --env dev` in both workflows. In `.github/workflows/mason-pull-request.yaml`, also add `id-token: write` under `permissions`, the `DATABRICKS_AUTH_TYPE` and `DATABRICKS_CLIENT_ID` lines under `env` from `mason-merge.yaml`, and `environment: dev` on the `validate` job.
 
 A version 1 `mason.platform.yaml` whose patterns match a style needs no change yet. To move it to version 2, set `version: 2`, replace `catalog` and `schema` under `naming` with `style`, and delete `naming.layers.sources`. Use the style your patterns match, so no table moves: `{env}_{domain}` / `{layer}` is `domain-catalogs`, `{env}_{layer}` / `{domain}` is `layer-catalogs`, and `{env}` / `{domain}_{layer}` is `environment-catalogs`. Then point the schema comment on the first line at `.mason/schemas/platform.v2.json`, and copy that file from a project `mason init` creates, so your editor checks the new fields. If you see `MSN124`, your patterns match no style: see [When none of these fit](concepts/naming.md#when-none-of-these-fit) before you pick one, because a new style moves every table.
 

@@ -268,6 +268,7 @@ REGISTERED_RULES = {
     "MSN125": "source-layers-fixed",
     "MSN126": "model-layer-named-like-a-source-layer",
     "MSN127": "model-outside-a-layer",
+    "MSN128": "production-shares-a-workspace",
     "MSN201": "unresolved-logical-name",
     "MSN202": "duplicate-table",
     "MSN203": "unparseable-sql",
@@ -279,6 +280,8 @@ REGISTERED_RULES = {
     "MSN209": "cross-domain-read",
     "MSN210": "read-against-build-order",
     "MSN211": "stream-of-upsert-silver",
+    "MSN301": "missing-catalog",
+    "MSN302": "missing-schema",
     "MSN901": "usage-error",
     "MSN902": "unknown-environment",
     "MSN903": "databricks-cli-missing",
@@ -448,14 +451,19 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 
 def test_a_new_rule_must_be_tested_here():
-    """The tests above, and the refresh failure, init folder and pinned CLI tests, cover these by
-    name. A new rule joins one."""
+    """The tests above, and the refresh failure, init folder, pinned CLI and platform check tests,
+    cover these by name. A new rule joins one."""
     usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905", "MSN909"}
     refresh_failures = {"MSN906", "MSN907", "MSN908"}
     pinned_cli_failures = {"MSN910", "MSN911", "MSN912", "MSN913"}
+    platform_checks = {"MSN128", "MSN301", "MSN302"}
 
     assert set(RULES) == (
-        set(INVALID_PROJECTS) | usage_and_environment | refresh_failures | pinned_cli_failures
+        set(INVALID_PROJECTS)
+        | usage_and_environment
+        | refresh_failures
+        | pinned_cli_failures
+        | platform_checks
     )
 
 

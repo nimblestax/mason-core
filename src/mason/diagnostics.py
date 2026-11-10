@@ -31,7 +31,11 @@ class Diagnostic:
     ]
     name: Annotated[str, Field(description="The Rule's name, such as `unresolved-logical-name`.")]
     severity: Annotated[
-        str, Field(description="How serious it is. Every diagnostic is an `error`.")
+        str,
+        Field(
+            description="How serious it is. An `error` fails the command. A `warning` is"
+            " reported and the command still succeeds."
+        ),
     ]
     file: Annotated[
         str, Field(description="The file it's in, from the project folder, or empty when none is.")
@@ -49,6 +53,15 @@ class Diagnostic:
 
 def error(rule: str, file: str, message: str, fix: str, line: int | None = None) -> Diagnostic:
     return Diagnostic(rule, RULES[rule].name, "error", file, line, message, fix, DOCS)
+
+
+def warning(rule: str, file: str, message: str, fix: str, line: int | None = None) -> Diagnostic:
+    return Diagnostic(rule, RULES[rule].name, "warning", file, line, message, fix, DOCS)
+
+
+def errors(diagnostics: list[Diagnostic]) -> list[Diagnostic]:
+    """The diagnostics that fail a command. Warnings don't."""
+    return [found for found in diagnostics if found.severity == "error"]
 
 
 class Failure(Exception):
