@@ -338,28 +338,26 @@ def _computed(file: str, computed: sql.Found) -> Diagnostic:
     )
 
 
-# The Environment kept apart from the others, by name until Environments are known by role.
-PRODUCTION = "prod"
-
-
 def _production_shares_a_workspace(project: Project) -> list[Diagnostic]:
-    """One workspace for every Environment works, and prod is then kept apart only by catalogs,
-    identities and grants. That is worth saying, and not worth failing."""
-    hosts = {env: host.rstrip("/").lower() for env, host in project.platform.hosts.items()}
-    if PRODUCTION not in hosts:
+    """One workspace for every Environment works, and the Production Environment is then kept
+    apart only by catalogs, identities and grants. That is worth saying, and not worth failing."""
+    production = project.platform.production_environment
+    if production is None:
         return []
+    hosts = {env: host.rstrip("/").lower() for env, host in project.platform.hosts.items()}
     sharing = sorted(
-        env for env, host in hosts.items() if env != PRODUCTION and host == hosts[PRODUCTION]
+        env for env, host in hosts.items() if env != production and host == hosts[production]
     )
     if not sharing:
         return []
-    listed = " and ".join(sharing)
+    *rest, last = sharing
+    listed = f"{', '.join(rest)} and {last}" if rest else last
     found = warning(
         "MSN128",
         FILE_NAME,
-        f"{PRODUCTION} uses the same workspace as {listed}, so it isn't isolated by workspace."
-        " Only catalogs, CI identities and grants keep it apart.",
-        f"To isolate {PRODUCTION}, give it its own `host` in `environments.{PRODUCTION}`. On one"
-        " workspace, keep each Environment's CI identity and grants separate.",
+        f"The Production Environment, {production}, uses the same workspace as {listed}, so it"
+        " isn't isolated by workspace. Only catalogs, CI identities and grants keep it apart.",
+        f"To isolate {production}, give it its own `host` in `environments.{production}`. On"
+        " one workspace, keep each Environment's CI identity and grants separate.",
     )
     return [found]

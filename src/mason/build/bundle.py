@@ -3,7 +3,6 @@
 import yaml
 
 from mason import names, sql
-from mason.kinds.platform import UNPAUSED_ENVIRONMENT
 from mason.load.project import Project
 
 REFRESH_JOB = "refresh"
@@ -58,7 +57,7 @@ def _target(project: Project, env: str) -> dict:
     if schedule:
         paused = schedule.paused
         if paused is None:
-            paused = env != UNPAUSED_ENVIRONMENT
+            paused = env != project.platform.production_environment
         target["resources"] = {
             "jobs": {
                 REFRESH_JOB: {

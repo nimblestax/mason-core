@@ -1,5 +1,6 @@
 """The Platform Contract: `mason.platform.yaml`."""
 
+import re
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
@@ -7,7 +8,7 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 from pydantic_core import PydanticCustomError
 
 from mason import names
-from mason.kinds.base import STRICT, ExactInteger, Identifier, unique
+from mason.kinds.base import IDENTIFIER, STRICT, ExactInteger, Identifier, unique
 
 FILE_NAME = "mason.platform.yaml"
 KIND = "platform"
@@ -18,9 +19,9 @@ PLACEHOLDERS = ("{env}", "{domain}", "{layer}")
 SHARED_DOMAIN = "shared"
 
 
-# The Environment whose schedule runs unless it says otherwise. Every other Environment's is
-# paused, so lower Environments don't spend money unasked.
-UNPAUSED_ENVIRONMENT = "prod"
+Role = Literal["development", "production"]
+DEVELOPMENT: Role = "development"
+PRODUCTION: Role = "production"
 
 
 class Schedule(BaseModel):
@@ -39,8 +40,8 @@ class Schedule(BaseModel):
     )
     paused: bool | None = Field(
         default=None,
-        description="Whether the schedule is paused. Left out, it runs in prod and is paused"
-        " everywhere else.",
+        description="Whether the schedule is paused. Left out, it runs in the Production"
+        " Environment and is paused everywhere else.",
     )
 
 
@@ -51,14 +52,22 @@ class Environment(BaseModel):
 
     host: str | None = Field(
         default=None,
-        description="Workspace URL. Required on dev; test and prod use dev's unless they set"
-        " their own.",
+        description="Workspace URL. Required on the Development Environment; every other"
+        " Environment uses its host unless it sets its own.",
+    )
+    role: Role | None = Field(
+        default=None,
+        description="What Mason uses the Environment for. Exactly one Environment is"
+        " `development`, the one people work in: commands that read use it by default, and"
+        " every Environment without a `host` uses its host. At most one is `production`, the one"
+        " kept isolated: schedules run in it by default. Any other Environment is a stage, in"
+        " the order CI runs them.",
     )
     default: bool = Field(
         default=False,
         description="Whether commands that read use this Environment when `--env` is left out."
-        " At most one Environment sets it; with none, dev is the default. `mason deploy` always"
-        " needs `--env`.",
+        " At most one Environment sets it; with none, the Development Environment is the"
+        " default. `mason deploy` always needs `--env`.",
     )
     schedule: Schedule | None = Field(
         default=None,
@@ -67,8 +76,21 @@ class Environment(BaseModel):
     )
 
 
-def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
-    """dev has a host, and at most one Environment is the default."""
+def _one_default(environments: dict[str, Environment]) -> None:
+    defaults = [env for env, settings in environments.items() if settings.default]
+    if len(defaults) > 1:
+        raise PydanticCustomError(
+            "MSN123",
+            "{defaults} each set `default: true`, and only one Environment can be the default.",
+            {
+                "defaults": " and ".join(defaults),
+                "fix": "Keep `default: true` on one Environment and remove it from the others.",
+            },
+        )
+
+
+def _checked_v1(environments: dict[str, Environment]) -> dict[str, Environment]:
+    """Version 1 knows Environments by name: dev has a host, and at most one is the default."""
     dev = environments.get("dev")
     if dev is None or dev.host is None:
         # A rule ID as the error type reaches the user as that rule, with this fix.
@@ -77,16 +99,62 @@ def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
             "dev has no `host`, and test and prod use dev's unless they set their own.",
             {"fix": "Add `host` under `environments.dev`, set to dev's workspace URL."},
         )
-    defaults = [env for env, settings in environments.items() if settings.default]
-    if len(defaults) > 1:
+    _one_default(environments)
+    return environments
+
+
+def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
+    """Each name is an identifier, each role is held once, and the Development Environment
+    exists and has a host."""
+    # An Environment's name goes into its catalogs, which Mason writes into SQL unquoted.
+    for env in environments:
+        if not re.fullmatch(IDENTIFIER, env):
+            raise PydanticCustomError(
+                "MSN132",
+                "The Environment `{env}` isn't an identifier, and its name goes into its"
+                " catalogs.",
+                {
+                    "env": env,
+                    "fix": "Rename the Environment to letters, digits and underscores, starting"
+                    " with a letter or underscore, such as `prd` or `test_2`.",
+                },
+            )
+    for role in (DEVELOPMENT, PRODUCTION):
+        holders = [env for env, settings in environments.items() if settings.role == role]
+        if len(holders) > 1:
+            raise PydanticCustomError(
+                "MSN131",
+                "{holders} each set `role: {role}`, and only one Environment can hold a role.",
+                {
+                    "holders": " and ".join(holders),
+                    "role": role,
+                    "fix": f"Keep `role: {role}` on one Environment and remove it from the"
+                    " others.",
+                },
+            )
+    development = [env for env, settings in environments.items() if settings.role == DEVELOPMENT]
+    if not development:
         raise PydanticCustomError(
-            "MSN123",
-            "{defaults} each set `default: true`, and only one Environment can be the" " default.",
+            "MSN130",
+            "No Environment sets `role: development`, and every project has one Development"
+            " Environment.",
             {
-                "defaults": " and ".join(defaults),
-                "fix": "Keep `default: true` on one Environment and remove it from the" " others.",
+                "fix": "Add `role: development` to the Environment people develop in, such as"
+                " `dev`."
             },
         )
+    [env] = development
+    if environments[env].host is None:
+        raise PydanticCustomError(
+            "MSN122",
+            "The Development Environment, {env}, has no `host`, and every other Environment"
+            " uses its host unless it sets its own.",
+            {
+                "env": env,
+                "fix": f"Add `host` under `environments.{env}`, set to its workspace URL.",
+            },
+        )
+    _one_default(environments)
     return environments
 
 
@@ -162,7 +230,7 @@ class PlatformV1(BaseModel):
     @field_validator("environments")
     @classmethod
     def _dev_has_a_host(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
-        return _checked(environments)
+        return _checked_v1(environments)
 
     @field_validator("domains")
     @classmethod
@@ -276,7 +344,7 @@ class PlatformV2(BaseModel):
 
     @field_validator("environments")
     @classmethod
-    def _dev_has_a_host(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
+    def _roles_are_held(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
         return _checked(environments)
 
     @field_validator("domains")
@@ -284,17 +352,32 @@ class PlatformV2(BaseModel):
     def _domains_are_unique(cls, domains: list[str]) -> list[str]:
         return unique(domains, "Domain")
 
+    def _holder(self, role: Role) -> str | None:
+        return next((env for env, s in self.environments.items() if s.role == role), None)
+
+    @property
+    def development_environment(self) -> str:
+        """The one Environment with `role: development`, which `_roles_are_held` checks."""
+        return self._holder(DEVELOPMENT) or ""
+
+    @property
+    def production_environment(self) -> str | None:
+        """The Environment with `role: production`, if there is one."""
+        return self._holder(PRODUCTION)
+
     @property
     def hosts(self) -> dict[str, str]:
-        """Each Environment's workspace URL. One with no `host` uses dev's."""
-        dev = self.environments["dev"].host or ""  # Never empty: `_dev_has_a_host` checks it.
-        return {env: settings.host or dev for env, settings in self.environments.items()}
+        """Each Environment's workspace URL. One with no `host` uses the Development
+        Environment's."""
+        # Never empty: `_roles_are_held` checks it.
+        development = self.environments[self.development_environment].host or ""
+        return {env: settings.host or development for env, settings in self.environments.items()}
 
     @property
     def default_environment(self) -> str:
         """What commands that read use when `--env` is left out."""
         marked = [env for env, settings in self.environments.items() if settings.default]
-        return marked[0] if marked else "dev"
+        return marked[0] if marked else self.development_environment
 
     @property
     def source_layers(self) -> tuple[str, str]:
@@ -306,7 +389,8 @@ class PlatformV2(BaseModel):
 
 
 def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
-    """Patterns that match a Naming Style become that style. Anything else can't be kept."""
+    """Patterns that match a Naming Style become that style. Anything else can't be kept. dev
+    and prod take the development and production roles."""
     if tuple(old.naming.layers.sources) != SOURCE_LAYERS:
         raise PydanticCustomError(
             "MSN125",
@@ -334,9 +418,16 @@ def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
                 " the style puts its tables first: a new style moves them.",
             },
         )
+    # Version 1 knew Environments by name, so dev and prod hold the roles those names meant.
+    roles = {"dev": DEVELOPMENT, "prod": PRODUCTION}
+    environments = {
+        env: {**settings.model_dump(exclude_defaults=True), "role": roles.get(env)}
+        for env, settings in old.environments.items()
+    }
     return PlatformV2.model_validate(
         {
-            **old.model_dump(include={"kind", "name", "environments", "domains"}),
+            **old.model_dump(include={"kind", "name", "domains"}),
+            "environments": environments,
             "version": 2,
             "naming": {"style": style, "layers": {"models": old.naming.layers.models}},
         }

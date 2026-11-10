@@ -148,7 +148,11 @@ def test_environments_in_one_workspace_each_get_their_own_job_and_pipelines(
     tmp_path: Path, stub_workspace: str
 ):
     project = init(tmp_path, "--host", stub_workspace)
-    set_environments(project, f"environments:\n  dev:\n    host: {stub_workspace}\n  test: {{}}\n")
+    set_environments(
+        project,
+        f"environments:\n  dev:\n    host: {stub_workspace}\n    role: development\n"
+        "  test: {}\n",
+    )
     compiled(project)
 
     name = load(project).platform.name
@@ -163,14 +167,14 @@ def test_environments_in_one_workspace_each_get_their_own_job_and_pipelines(
 DAILY = "    schedule:\n      cron: 0 0 6 * * ?\n      timezone: Australia/Sydney\n"
 
 
-def test_each_environment_runs_on_its_own_schedule_paused_outside_prod_by_default(
+def test_each_environment_runs_on_its_own_schedule_paused_outside_production_by_default(
     tmp_path: Path, stub_workspace: str
 ):
     project = init(tmp_path, "--host", stub_workspace)
     set_environments(
         project,
-        f"environments:\n  dev:\n    host: {stub_workspace}\n{DAILY}  test:\n{DAILY}"
-        f"  prod:\n{DAILY}",
+        f"environments:\n  dev:\n    host: {stub_workspace}\n    role: development\n{DAILY}"
+        f"  test:\n{DAILY}  prod:\n    role: production\n{DAILY}",
     )
     compiled(project)
 
@@ -186,8 +190,8 @@ def test_each_environment_runs_on_its_own_schedule_paused_outside_prod_by_defaul
 def test_an_environment_can_say_whether_its_schedule_is_paused(project: Path):
     set_environments(
         project,
-        "environments:\n  dev:\n    host: https://dev.example.com\n"
-        f"{DAILY}      paused: false\n  prod:\n{DAILY}      paused: true\n",
+        "environments:\n  dev:\n    host: https://dev.example.com\n    role: development\n"
+        f"{DAILY}      paused: false\n  prod:\n    role: production\n{DAILY}      paused: true\n",
     )
 
     targets = compiled(project)["targets"]

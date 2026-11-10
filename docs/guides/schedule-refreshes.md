@@ -1,6 +1,6 @@
 ---
 title: Schedule refreshes
-description: Refresh an Environment's tables on a schedule, set in mason.platform.yaml, and paused outside prod unless you say otherwise.
+description: Refresh an Environment's tables on a schedule, set in mason.platform.yaml, and paused outside the production environment unless you say otherwise.
 ---
 
 Each Environment has one Job that refreshes every pipeline. `mason deploy` runs it once after each deploy. A schedule also runs it on its own.
@@ -13,8 +13,10 @@ Add `schedule` under the Environment in `mason.platform.yaml`:
 environments:
   dev:
     host: https://kettle.cloud.databricks.com
+    role: development
   test: {}
   prod:
+    role: production
     schedule:
       cron: 0 0 6 * * ?
       timezone: Australia/Sydney
@@ -49,7 +51,7 @@ The schedule takes effect at the next `mason deploy --env prod`.
 
 ## Schedule an Environment other than prod
 
-A schedule in any Environment other than prod is paused, so lower Environments don't spend money unasked. To run it, set `paused: false`:
+A schedule in any Environment other than the production environment, the one with `role: production`, is paused, so lower Environments don't spend money unasked. To run it, set `paused: false`:
 
 ```yaml
   test:
@@ -67,4 +69,5 @@ Delete `schedule` and deploy. The Job then runs only when `mason deploy` runs it
 ## Next steps
 
 - Every field of `schedule` is in the [Platform Contract reference](../reference/kinds/platform.md).
+- Roles are explained in [Environments](../concepts/environments.md).
 - If a refresh fails, see [Recover from a failed refresh](recover-from-a-failed-refresh.md).

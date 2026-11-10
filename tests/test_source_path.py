@@ -27,6 +27,7 @@ def add_environments(project: Path, host: str | None = None) -> None:
     content = yaml.safe_load(contract.read_text())
     host = host or content["environments"]["dev"]["host"]
     content["environments"] = {env: {"host": host} for env in ("dev", "test", "prod")}
+    content["environments"]["dev"]["role"] = "development"
     contract.write_text(yaml.safe_dump(content, sort_keys=False))
 
 

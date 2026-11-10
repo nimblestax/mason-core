@@ -274,6 +274,9 @@ REGISTERED_RULES = {
     "MSN127": "model-outside-a-layer",
     "MSN128": "production-shares-a-workspace",
     "MSN129": "skill-version-drift",
+    "MSN130": "no-development-environment",
+    "MSN131": "two-environments-with-one-role",
+    "MSN132": "environment-name-not-an-identifier",
     "MSN201": "unresolved-logical-name",
     "MSN202": "duplicate-table",
     "MSN203": "unparseable-sql",
@@ -391,11 +394,11 @@ INVALID_PROJECTS = {
         (project / SOURCE).read_text()
     ),
     "MSN121": lambda project: (project / "domains/hr").mkdir(),
-    "MSN122": replacing(PLATFORM, f"  dev:\n    host: {PLACEHOLDER_HOST}\n", "  dev: {}\n"),
+    "MSN122": replacing(PLATFORM, f"    host: {PLACEHOLDER_HOST}\n", ""),
     "MSN123": replacing(
         PLATFORM,
-        f"    host: {PLACEHOLDER_HOST}\n",
-        f"    host: {PLACEHOLDER_HOST}\n    default: true\n  prod:\n    default: true\n",
+        "    role: development\n",
+        "    role: development\n    default: true\n  prod:\n    default: true\n",
     ),
     "MSN124": replacing(PLATFORM, "  style: domain-catalogs\n", '  catalog: "{env}"\n'),
     "MSN125": lambda project: (project / PLATFORM).write_text(
@@ -406,6 +409,15 @@ INVALID_PROJECTS = {
     ),
     "MSN126": replacing(PLATFORM, "models: [gold]", "models: [gold, silver]"),
     "MSN127": lambda project: (project / "domains/sales/models/x.sql").write_text("SELECT 1"),
+    "MSN130": replacing(PLATFORM, "    role: development\n", ""),
+    "MSN131": replacing(
+        PLATFORM,
+        "    role: development\n",
+        "    role: development\n  test:\n    role: development\n",
+    ),
+    "MSN132": replacing(
+        PLATFORM, "    role: development\n", "    role: development\n  prd-1: {}\n"
+    ),
     "MSN201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "MSN202": seed("code: STRING", "code\nAU\n", name="orders"),
     "MSN203": lambda project: (project / f"{MODEL}.sql").write_text("SELECT FROM WHERE"),

@@ -89,7 +89,7 @@ PROD_HOST = "https://kettle-prod.cloud.databricks.com"
 
 def add_prod(project: Path, host: str | None) -> None:
     contract = project / "mason.platform.yaml"
-    settings = f"\n    host: {host}" if host else " {}"
+    settings = "\n    role: production" + (f"\n    host: {host}" if host else "")
     contract.write_text(
         contract.read_text().replace("naming:\n", f"  prod:{settings}\nnaming:\n", 1)
     )
