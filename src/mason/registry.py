@@ -490,6 +490,24 @@ RULES = {
         fix="Move the file into a folder named after a model Layer, which the diagnostic lists."
         " To add a Layer, add it to `naming.layers.models` in `mason.platform.yaml`.",
     ),
+    "MSN128": Rule(
+        "production-shares-a-workspace",
+        checks="`prod` uses the same workspace as another Environment. This is a warning, and"
+        " `mason validate` still passes.",
+        why="One workspace for every Environment works under every Naming Style, so a team can"
+        " start on a single free workspace. The Environment is part of every catalog name, so"
+        " Environments never share a table. But prod is then kept apart only by catalogs, each"
+        " Environment's CI identity and their grants, not by a workspace boundary, and a grant"
+        " set too wide reaches prod.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace("naming:", "  prod: {}\nnaming:")
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Give prod its own `host` when you can. Until then, keep each Environment's CI"
+        " identity and grants separate.",
+    ),
     "MSN201": Rule(
         "unresolved-logical-name",
         checks="SQL reads a table that isn't in the project.",
@@ -635,6 +653,34 @@ RULES = {
             }
         ),
         fix="Read the table without `STREAM(...)`, as `FROM sales.silver.orders`.",
+    ),
+    "MSN301": Rule(
+        "missing-catalog",
+        checks="With `--platform`, a catalog the project's tables need isn't in the"
+        " Environment's workspace, or the identity Mason signs in as can't see it.",
+        why="Mason makes tables, views and pipelines, and never catalogs or schemas: those"
+        " belong to whoever runs the platform, so the same tool never both creates and grants"
+        " them. `mason init` lists every catalog and schema to create. A deploy into a catalog"
+        " that isn't there fails halfway through, so `mason validate --platform` checks first.",
+        example=Example(
+            command="mason validate --platform",
+            when="dev's workspace has no catalog `dev_sales`.",
+        ),
+        fix="Create the catalog with the schemas the diagnostic lists, or grant the identity"
+        " `USE CATALOG` on it.",
+    ),
+    "MSN302": Rule(
+        "missing-schema",
+        checks="With `--platform`, a schema the project's tables need isn't in its catalog in"
+        " the Environment's workspace, or the identity Mason signs in as can't see it.",
+        why="Mason makes tables in schemas that already exist, and never creates them, for the"
+        " same reasons as `MSN301`. A deploy into a schema that isn't there fails halfway"
+        " through, so `mason validate --platform` checks first.",
+        example=Example(
+            command="mason validate --platform",
+            when="dev's workspace has the catalog `dev_sales` but no schema `silver` in it.",
+        ),
+        fix="Create the schema in its catalog, or grant the identity `USE SCHEMA` on it.",
     ),
     "MSN901": Rule(
         "usage-error",

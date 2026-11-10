@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import re
+from collections.abc import Iterable
 from dataclasses import dataclass
 from typing import TYPE_CHECKING
 
@@ -108,12 +109,14 @@ def settings(project: Project, env: str) -> dict[str, str]:
     return values
 
 
-def platform_objects(platform: Platform) -> tuple[list[str], list[str]]:
-    """Every catalog, and every schema as `catalog.schema`, the project's tables need, in
-    Environment, Domain and Layer order."""
+def platform_objects(
+    platform: Platform, envs: Iterable[str] | None = None
+) -> tuple[list[str], list[str]]:
+    """Every catalog, and every schema as `catalog.schema`, the project's tables need in `envs`,
+    by default every Environment, in Environment, Domain and Layer order."""
     catalogs: dict[str, None] = {}
     schemas: dict[str, None] = {}
-    for env in platform.hosts:
+    for env in platform.hosts if envs is None else envs:
         for domain in platform.domains:
             for layer in (*platform.source_layers, *platform.model_layers):
                 catalog, schema = real_names(platform.naming.style, env, domain, layer)

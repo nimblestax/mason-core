@@ -30,6 +30,8 @@ Each style puts the environment first, then the domain and the layer, and joins 
 
 Every style works with one workspace for all environments, or one workspace per environment. The environment is always part of the catalog name, so environments sharing a workspace never share a table.
 
+On one workspace, prod is kept apart from the other environments only by its catalogs, each environment's CI identity and their grants. `mason validate` says so with the warning [`MSN128`](../reference/rules/msn128.md), and still passes. Give prod its own `host` in `mason.platform.yaml` when you can.
+
 ## How a logical name resolves
 
 The SQL is the same in every environment. Only the real name changes. With `domain-catalogs`, `sales.silver.orders` is:
@@ -42,7 +44,17 @@ The SQL is the same in every environment. Only the real name changes. With `doma
 
 Each domain and layer pair gets its own catalog and schema. A gold model in the same project, `sales.gold.fct_orders`, is `prod_sales.gold.fct_orders` in prod, and a finance source, `finance.silver.invoices`, is `prod_finance.silver.invoices`.
 
-`mason init` prints every catalog and schema your project needs, so you can create them before your first deploy. `mason compile --env prod` shows the real names in the code it generates.
+`mason init` prints every catalog and schema your project needs, so you can create them before your first deploy. Mason never creates them. `mason compile --env prod` shows the real names in the code it generates.
+
+`mason validate --platform` signs in to an environment's workspace and checks that its catalogs and schemas are there, so a missing one fails before a deploy rather than halfway through one. It checks the default environment, or the one `--env` names:
+
+```console
+$ mason validate --platform --env dev
+MSN302 mason.platform.yaml: The schema `dev_sales.silver` isn't in dev's workspace, https://kettle.cloud.databricks.com, or the identity Mason signed in as can't see it. The project's tables in dev need it.
+  Fix: Create the schema `silver` in the catalog `dev_sales`, or grant the identity `USE SCHEMA` on it. Mason never creates schemas.
+```
+
+It checks one environment at a time, because each CI job signs in as one environment's identity. The workflows `mason init --ci github` writes run it as dev, before anything else. Plain `mason validate` reads no workspace.
 
 ## Changing the style
 

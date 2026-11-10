@@ -1,6 +1,6 @@
 ---
 title: mason validate
-description: Check config and SQL references, with no workspace.
+description: Check config and SQL references. With `--platform`, also check the workspace.
 generated: true
 mason_version: 0.3.0
 ---
@@ -13,6 +13,8 @@ $ mason validate [OPTIONS]
 
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
+| `--platform` | Nothing |  | Also check, in the Environment's workspace, that the catalogs and schemas the project needs exist. |
+| `--env` | text |  | The Environment whose workspace `--platform` checks. Defaults to the default Environment. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
