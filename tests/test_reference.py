@@ -7,11 +7,10 @@ from typing import Any
 
 import pytest
 from test_docs import front_matter
-from typer.main import get_command
 from typer.testing import CliRunner
 
 from mason import reference
-from mason.cli import PASSED_THROUGH, app
+from mason.cli import PASSED_THROUGH, app, every_command
 from mason.diagnostics import EXIT_CODES
 from mason.kinds import KINDS, latest_schema
 from mason.registry import RULES, Example
@@ -186,15 +185,14 @@ def test_a_rule_links_a_principle_the_way_still_publishes(code: str):
 
 
 def commands() -> dict[str, Any]:
-    group: Any = get_command(app)
-    return group.commands
+    return every_command()
 
 
 def test_every_command_gets_a_page_listing_its_options_and_exit_codes(tmp_path: Path):
     reference.write(tmp_path)
 
     for name, registered in commands().items():
-        text = (tmp_path / f"reference/commands/{name}.md").read_text()
+        text = (tmp_path / f"reference/commands/{reference.page_name(name)}.md").read_text()
         page = front_matter(text)
         assert page["title"] == f"mason {name}"
         assert page["description"] == registered.help
@@ -218,7 +216,14 @@ def test_the_databricks_page_says_its_arguments_and_exit_code_are_the_clis(tmp_p
 
 @pytest.mark.parametrize(
     "command",
-    [["init"], ["validate"], ["schema", "source"], ["compile"], ["compile", "--env", "dev"]],
+    [
+        ["init"],
+        ["validate"],
+        ["schema", "source"],
+        ["compile"],
+        ["compile", "--env", "dev"],
+        ["skills", "update"],
+    ],
 )
 def test_a_command_page_documents_every_field_of_its_json_result(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch, command: list[str]
@@ -229,7 +234,8 @@ def test_a_command_page_documents_every_field_of_its_json_result(
 
     envelope = json.loads(CliRunner().invoke(app, [*command, "--json"]).stdout)
 
-    text = (tmp_path / f"docs/reference/commands/{command[0]}.md").read_text()
+    page = "skills-update" if command[0] == "skills" else command[0]
+    text = (tmp_path / f"docs/reference/commands/{page}.md").read_text()
     assert f"`{envelope['schema']}`" in text
     for field in envelope["result"]:
         assert f"| `{field}` |" in text, field
@@ -252,7 +258,7 @@ def test_the_json_page_documents_the_envelope_and_links_every_command_and_rule(
     for field in [*envelope, *envelope["diagnostics"][0]]:
         assert f"| `{field}` |" in text, field
     for name in commands():
-        assert f"(commands/{name}.md)" in text, name
+        assert f"(commands/{reference.page_name(name)}.md)" in text, name
     for code in RULES:
         assert f"(rules/{code.lower()}.md)" in text, code
     assert "\n## Rule IDs\n" in text

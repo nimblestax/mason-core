@@ -22,6 +22,7 @@ $ mason init [<folder>] [OPTIONS]
 | `--ci` | `github` | `github` | CI provider to write files for. |
 | `--host` | text | `https://your-workspace.cloud.databricks.com` | Workspace URL. |
 | `--naming-style` | `domain-catalogs`, `layer-catalogs`, `environment-catalogs` |  | Where tables live. Asked at a terminal when left out; otherwise domain-catalogs. |
+| `--skills` | `all`, `none` | `all` | Mason Skills to write for coding agents, into `.agents/skills/` and `.claude/skills/`. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
 ## Exit codes
@@ -42,3 +43,5 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | `naming_style` | string | The Naming Style written into its Platform Contract. |
 | `catalogs` | array of string | The catalogs to create before deploying. |
 | `schemas` | array of string | The schemas to create before deploying, as `catalog.schema`. |
+| `skills` | array of string | The Mason Skill folders written. |
+| `skills_left_alone` | array of string | The Mason Skill folders that already existed, which were left as they were. |

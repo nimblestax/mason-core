@@ -12,16 +12,15 @@ from typing import Any, get_args, get_origin, get_type_hints
 import yaml
 from pydantic import BaseModel, TypeAdapter
 from typer.core import TyperArgument, TyperCommand, TyperOption
-from typer.main import get_command
 
 from mason import output
-from mason.cli import PASSED_THROUGH, app
+from mason.cli import PASSED_THROUGH, callbacks, every_command
 from mason.diagnostics import EXIT_CODES, Diagnostic, error
 from mason.kinds import KINDS, latest_schema
-from mason.registry import RULES, Example, Rule
+from mason.registry import RULES, Rule
 
 WAY = "https://nimblestax.com/way"
-LANGUAGES = {".yaml": "yaml", ".yml": "yaml", ".sql": "sql", ".csv": "csv"}
+LANGUAGES = {".yaml": "yaml", ".yml": "yaml", ".sql": "sql", ".csv": "csv", ".md": "markdown"}
 EXAMPLE = error(
     "MSN201",
     "domains/sales/models/gold/fct_orders.sql",
@@ -42,15 +41,20 @@ def write(docs: Path) -> None:
 
     commands = docs / "reference/commands"
     commands.mkdir(parents=True, exist_ok=True)
-    group: Any = get_command(app)
-    callbacks = {info.name: info.callback for info in app.registered_commands}
-    for name, registered in group.commands.items():
+    registered_commands = every_command()
+    behind = callbacks()
+    for name, registered in registered_commands.items():
         if name in PASSED_THROUGH:
             page = _passed_through_page(name, registered)
         else:
-            page = _command_page(name, registered, _results(callbacks[name]))
-        (commands / f"{name}.md").write_text(page)
-    (docs / "reference/json-output.md").write_text(_json_page(group.commands))
+            page = _command_page(name, registered, _results(behind[name]))
+        (commands / f"{page_name(name)}.md").write_text(page)
+    (docs / "reference/json-output.md").write_text(_json_page(registered_commands))
+
+
+def page_name(command: str) -> str:
+    """`skills update` is documented on `skills-update.md`."""
+    return command.replace(" ", "-")
 
 
 def _kind_page(kind: str) -> str:
@@ -143,7 +147,7 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         *_shape(TypeAdapter(Diagnostic).json_schema()),
         "## Results\n\nEach command's page describes its `result`.\n",
         "\n".join(
-            f"- [`mason {name}`](commands/{name}.md): {registered.help}"
+            f"- [`mason {name}`](commands/{page_name(name)}.md): {registered.help}"
             for name, registered in commands.items()
             if name not in PASSED_THROUGH
         )
@@ -199,7 +203,7 @@ def _command_page(name: str, registered: TyperCommand, results: list[type[BaseMo
     sections.append("## Exit codes\n\n" + _table(["Code", "Meaning"], rows))
     sections.append(
         f"## JSON result\n\nWith `--json`, it prints the [envelope](../json-output.md) with"
-        f" `schema` set to `mason.{name}/1`. When it succeeds, `result` is:\n"
+        f" `schema` set to `mason.{name.replace(' ', '.')}/1`. When it succeeds, `result` is:\n"
     )
     for result in results:
         sections += _shape(result.model_json_schema(by_alias=True))
@@ -267,7 +271,7 @@ def _rule_page(code: str, rule: Rule) -> str:
     sections = [
         f"## What it checks\n\n{rule.checks}\n",
         f"## Why\n\n{rule.why}\n",
-        f"## Example\n\n{_example(rule.example)}",
+        f"## Example\n\n{_example(rule)}",
         f"## Fix\n\n{rule.fix}\n",
     ]
     if rule.principle:
@@ -276,16 +280,18 @@ def _rule_page(code: str, rule: Rule) -> str:
     return _front_matter(f"{code} {rule.name}", rule.checks) + "\n" + "\n".join(sections)
 
 
-def _example(example: Example) -> str:
+def _example(rule: Rule) -> str:
+    example = rule.example
+    fails = "warns" if rule.severity == "warning" else "fails"
     if example.command:
         when = f"{example.when} " if example.when else ""
-        return f"{when}In a project, this fails:\n\n```console\n$ {example.command}\n```\n"
+        return f"{when}In a project, this {fails}:\n\n```console\n$ {example.command}\n```\n"
     files = [
         f"`{path}`:\n\n```{LANGUAGES[Path(path).suffix]}\n{text}```\n"
         for path, text in example.files.items()
     ]
     these = "these files" if len(files) > 1 else "this file"
-    lead = f"Write {these} into the project `mason init` creates, and `mason validate` fails:"
+    lead = f"Write {these} into the project `mason init` creates, and `mason validate` {fails}:"
     return f"{lead}\n\n" + "\n".join(files)
 
 

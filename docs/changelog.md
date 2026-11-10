@@ -33,6 +33,10 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 - Each Environment's Job waits only where one pipeline reads another's tables. A domain's gold waits for the ingest pipelines whose silver it reads, its own or another domain's exported silver, and for the shared domain's gold if it reads it. A failed pipeline skips only what reads from it, so an unrelated domain still refreshes. Before, a domain's gold always waited for its own ingest and never for another domain's.
 - Pipeline and Job names carry the Environment, such as `kettle_dev_sales_ingest` and `kettle_dev_refresh`, so dev, test and prod can share one workspace. Before, a second Environment in the same workspace failed to deploy, because Databricks refuses a second pipeline with the same name. The next deploy renames each Environment's pipelines and Job in place.
 - An Environment can refresh on a schedule, set as `schedule` in `mason.platform.yaml`. A schedule runs in prod and is paused in every other Environment unless it sets `paused: false`. See [Schedule refreshes](guides/schedule-refreshes.md).
+- `mason init` writes Mason skills for coding agents, `mason-add-source` and `mason-add-model`, into `.agents/skills/` and an identical copy in `.claude/skills/`. It adds only `mason-*` folders, and leaves one that exists alone. `--skills none` writes none. See [Mason skills](concepts/mason-skills.md).
+  - `mason validate` warns when a skill was written by another Mason version, with [`MSN129`](reference/rules/msn129.md) `skill-version-drift`.
+  - `mason skills update` refreshes both copies of each skill. It stops on a skill you edited and shows the difference, with [`MSN915`](reference/rules/msn915.md) `skill-edited`, unless you pass `--force`.
+  - `mason init` warns when Git ignores a skills folder, with [`MSN914`](reference/rules/msn914.md) `skills-folder-ignored`.
 
 **What to change:** delete the `databricks/setup-cli` step from `.github/workflows/mason-merge.yaml`. It does no harm, but Mason no longer uses that CLI.
 
