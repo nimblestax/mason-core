@@ -263,6 +263,7 @@ REGISTERED_RULES = {
     "MSN209": "cross-domain-read",
     "MSN210": "read-against-build-order",
     "MSN211": "stream-of-upsert-silver",
+    "MSN212": "depends-on-not-in-sql",
     "MSN901": "usage-error",
     "MSN902": "unknown-environment",
     "MSN903": "databricks-cli-missing",
@@ -396,6 +397,9 @@ INVALID_PROJECTS = {
             "format: json\nsilver:\n  keys: [order_id]\n  sequence_by: updated_at\n",
         )(project),
         (project / f"{MODEL}.sql").write_text("SELECT * FROM STREAM(sales.silver.orders)"),
+    ),
+    "MSN212": lambda project: (project / f"{MODEL}.yaml").write_text(
+        f"{(project / f'{MODEL}.yaml').read_text()}depends_on: [sales.silver.nope]\n"
     ),
 }
 

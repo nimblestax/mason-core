@@ -14,3 +14,4 @@ A file with `kind: model`, at version 1. `mason schema model` prints the same fi
 | `kind` | `model` | yes |  | The Kind of this file. |
 | `version` | `1` | yes |  | The schema version of this Kind. |
 | `sql` | string | yes |  | The SQL file, in the same folder as this file. |
+| `depends_on` | list of string | no |  | Logical Names the SQL reads where Mason can't parse it. Each must appear in the SQL exactly as written here, and Mason replaces it there. |

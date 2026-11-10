@@ -55,6 +55,7 @@ LANDED_AS_JSON = (
 COUNTRIES = "domains/sales/seeds/countries.yaml"
 COUNTRIES_CSV = "domains/sales/seeds/countries.csv"
 FCT_ORDERS = "domains/sales/models/gold/fct_orders.sql"
+FCT_ORDERS_CONFIG = "domains/sales/models/gold/fct_orders.yaml"
 RECOVERY_GUIDE = "[Recover from a failed refresh](../../guides/recover-from-a-failed-refresh.md)"
 COUNTRIES_CONFIG = "kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  code: STRING\n"
 # `mason.platform.yaml` as `mason init` writes it, up to `domains`, for examples that add one.
@@ -442,7 +443,10 @@ RULES = {
         " those reads. A file with more than one statement is reported too, because a Gold"
         " Model is one query.",
         example=Example({FCT_ORDERS: "SELECT order_id, amount\nFROM sales.silver.orders\nWHERE\n"}),
-        fix="Make the file one Databricks SQL query that runs on its own.",
+        fix="Make the file one Databricks SQL query that runs on its own."
+        " If it runs on Databricks and Mason still can't parse it, list the tables it"
+        " reads under `depends_on` in its config file. See"
+        " [Declare a read Mason can't parse](../../guides/declare-a-read-mason-cant-parse.md).",
     ),
     "MSN204": Rule(
         "computed-table-name",
@@ -551,6 +555,25 @@ RULES = {
             }
         ),
         fix="Read the table without `STREAM(...)`, as `FROM sales.silver.orders`.",
+    ),
+    "MSN212": Rule(
+        "depends-on-not-in-sql",
+        checks="A name in a Gold Model's `depends_on` doesn't appear in its SQL exactly as"
+        " written.",
+        why="`depends_on` names the tables a Gold Model reads where Mason can't parse its SQL."
+        " Mason finds each name in the SQL text and replaces it with the real table for each"
+        " Environment. A name that isn't in the text would declare a read the SQL doesn't make,"
+        " and hide the one it does.",
+        example=Example(
+            {
+                FCT_ORDERS_CONFIG: "kind: model\nversion: 1\nsql: fct_orders.sql\n"
+                "depends_on:\n  - sales.silver.orders\n",
+                FCT_ORDERS: "SELECT order_id, amount\nFROM STREAM(sales.silver.order)\n"
+                "WATERMARK ordered_at DELAY OF INTERVAL 1 MINUTE\n",
+            }
+        ),
+        fix="Write the name in the SQL exactly as it is in `depends_on`, or remove it from"
+        " `depends_on`.",
     ),
     "MSN901": Rule(
         "usage-error",

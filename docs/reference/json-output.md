@@ -117,6 +117,7 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN209`](rules/msn209.md) | `cross-domain-read` | A Gold Model reads another Domain's gold, or silver that Domain hasn't Exported. |
 | [`MSN210`](rules/msn210.md) | `read-against-build-order` | A Gold Model reads bronze. |
 | [`MSN211`](rules/msn211.md) | `stream-of-upsert-silver` | A Gold Model reads silver that has `keys` with `STREAM(...)`. |
+| [`MSN212`](rules/msn212.md) | `depends-on-not-in-sql` | A name in a Gold Model's `depends_on` doesn't appear in its SQL exactly as written. |
 | [`MSN901`](rules/msn901.md) | `usage-error` | The command line is wrong. |
 | [`MSN902`](rules/msn902.md) | `unknown-environment` | `--env` isn't an Environment in the project. |
 | [`MSN903`](rules/msn903.md) | `databricks-cli-missing` | `databricks` isn't on the PATH. |

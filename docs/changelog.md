@@ -14,6 +14,7 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 - In `mason.platform.yaml`, test and prod use dev's `host` unless they set their own, so a project on one workspace sets `host` once. dev's `host` is required, with [`MSN122`](reference/rules/msn122.md).
 - One Environment may set `default: true`. With none, dev is the default. Two defaults fail with [`MSN123`](reference/rules/msn123.md).
 - `mason deploy` without `--env` says to add one, and exits 2. It never uses the default Environment.
+- A gold model's config file takes `depends_on`, a list of the tables its SQL reads where Mason can't parse it, such as SQL with a `WATERMARK` clause. Each name must appear in the SQL exactly as written, or `mason validate` fails with [`MSN212`](reference/rules/msn212.md). See [Declare a read Mason can't parse](guides/declare-a-read-mason-cant-parse.md).
 
 ## 0.2.0
 

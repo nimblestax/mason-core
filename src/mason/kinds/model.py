@@ -5,13 +5,23 @@ from pathlib import Path
 from typing import Annotated, Any, Literal
 
 import yaml
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, field_validator
 
 from mason.diagnostics import Diagnostic, error
-from mason.kinds.base import CONFIG_SUFFIXES, STRICT, ExactInteger, InDomain, config_files
+from mason.kinds.base import (
+    CONFIG_SUFFIXES,
+    STRICT,
+    ExactInteger,
+    InDomain,
+    config_files,
+    unique,
+)
 
 KIND = "model"
 FOLDER = "models"
+
+# Three identifiers joined by dots, as a Logical Name is written in SQL.
+WRITTEN_LOGICAL_NAME = r"^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*){2}$"
 
 
 class ModelV1(InDomain):
@@ -26,6 +36,17 @@ class ModelV1(InDomain):
     sql: str = Field(
         pattern=r"^[^/\\]+\.sql$", description="The SQL file, in the same folder as this file."
     )
+    depends_on: list[Annotated[str, Field(pattern=WRITTEN_LOGICAL_NAME)]] = Field(
+        default_factory=list,
+        json_schema_extra={"uniqueItems": True},
+        description="Logical Names the SQL reads where Mason can't parse it. Each must appear in"
+        " the SQL exactly as written here, and Mason replaces it there.",
+    )
+
+    @field_validator("depends_on")
+    @classmethod
+    def _depends_on_is_unique(cls, depends_on: list[str]) -> list[str]:
+        return unique(depends_on, "name in `depends_on`")
 
     def layer(self, model_layers: tuple[str, ...]) -> str:
         """The first folder under `models/` names the Layer. A file directly in `models/` is in

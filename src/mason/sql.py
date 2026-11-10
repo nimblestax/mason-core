@@ -1,7 +1,7 @@
 """Reads Logical Names out of Gold Model SQL and rewrites them, keeping the author's formatting."""
 
 import re
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 
 import sqlglot
@@ -60,6 +60,13 @@ class Unparseable(Exception):
         super().__init__(reason)
         self.reason = reason
         self.line = line
+
+
+class NotAQuery(Unparseable):
+    """The SQL parses, but as something other than one query, such as `DROP` or two statements.
+
+    `depends_on` never covers it: it's only for a query Mason can't parse.
+    """
 
 
 def parse(sql: str) -> Query:
@@ -131,11 +138,11 @@ def _one_statement(sql: str) -> exp.Expression:
     except SqlglotError as failure:
         raise Unparseable(str(failure)) from failure
     if len(statements) != 1:
-        raise Unparseable(f"It holds {len(statements)} statements, not one query.")
+        raise NotAQuery(f"It holds {len(statements)} statements, not one query.")
     [statement] = statements
     # A top-level VALUES is a query too, but sqlglot doesn't class it as one.
     if not isinstance(statement, exp.Query | exp.Values):
-        raise Unparseable(f"It's a {_keyword(statement)} statement, not a query.")
+        raise NotAQuery(f"It's a {_keyword(statement)} statement, not a query.")
     return statement
 
 
@@ -182,16 +189,45 @@ def _stream_parts(table: exp.Table) -> list[exp.Expression]:
     return []
 
 
-def rewrite(sql: str, replacement: Callable[[LogicalName], str]) -> str:
-    """Replaces each three-part name in place, so comments and layout survive."""
-    known = reads(sql)
+def rewrite(
+    sql: str, replacement: Callable[[LogicalName], str], declared: Collection[str] = ()
+) -> str:
+    """Replaces each three-part name the query reads in place, so comments and layout survive.
+
+    Each `declared` name is replaced wherever it's written exactly, even in SQL Mason can't parse.
+    """
+    try:
+        known = reads(sql)
+    except NotAQuery:
+        raise
+    except Unparseable:
+        if not declared:
+            raise
+        known = set()
+    spans: dict[tuple[int, int], LogicalName] = {}
+    if known:
+        for start, end, name in _three_part_names(sql):
+            if name in known:
+                spans[start, end] = name
+    for written in declared:
+        for match in _written(written).finditer(sql):
+            spans[match.span()] = LogicalName(*written.split("."))
     pieces: list[str] = []
     position = 0
-    for start, end, name in _three_part_names(sql):
-        if name in known:
-            pieces += [sql[position:start], replacement(name)]
-            position = end
+    for (start, end), name in sorted(spans.items()):
+        pieces += [sql[position:start], replacement(name)]
+        position = end
     return "".join(pieces) + sql[position:]
+
+
+def find_written(sql: str, name: str) -> Found | None:
+    """Where `name` first appears exactly as written, and not as part of a longer name."""
+    match = _written(name).search(sql)
+    return Found(name, sql.count("\n", 0, match.start()) + 1) if match else None
+
+
+def _written(name: str) -> re.Pattern[str]:
+    return re.compile(rf"(?<![\w.`]){re.escape(name)}(?![\w.`])")
 
 
 def _three_part_names(sql: str, offset: int = 0) -> list[tuple[int, int, LogicalName]]:

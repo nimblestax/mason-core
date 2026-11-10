@@ -19,8 +19,11 @@ def check(project: Project) -> list[Diagnostic]:
         try:
             query = sql.parse(model.query)
         except sql.Unparseable as failure:
-            diagnostics.append(_unparseable(file, failure))
-            continue
+            if isinstance(failure, sql.NotAQuery) or not model.depends_on:
+                diagnostics.append(_unparseable(file, failure))
+                continue
+            query = sql.Query()  # Its reads are only what `depends_on` declares.
+        diagnostics += _add_declared(project, model, query)
         # A loop across Domains needs a read of another Domain's gold, which is its own failure.
         reads[_gold(project, model)] = {
             read for read in query.reads if read.domain == model.domain.lower()
@@ -37,6 +40,23 @@ def check(project: Project) -> list[Diagnostic]:
         + _seeds_named_like_sources(project)
         + _named_like_a_quarantine(project)
     )
+
+
+def _add_declared(project: Project, model: Model, query: sql.Query) -> list[Diagnostic]:
+    """Adds each `depends_on` name to the query's reads, so every other rule checks it too.
+
+    A name must appear in the SQL as written, or it could declare a read the SQL doesn't make.
+    """
+    config = model.config_file.relative_to(project.root).as_posix()
+    text = model.query
+    diagnostics = []
+    for name in model.depends_on:
+        written = sql.find_written(text, name)
+        if written:
+            query.reads.setdefault(LogicalName(*name.split(".")), written)
+        else:
+            diagnostics.append(_declared_not_in_sql(config, name, model.sql))
+    return diagnostics
 
 
 def _reads(project: Project, known: set[LogicalName], file: str, query: sql.Query):
@@ -246,6 +266,17 @@ def _named_like_a_quarantine(project: Project) -> list[Diagnostic]:
     ]
 
 
+def _declared_not_in_sql(file: str, name: str, sql_file: str) -> Diagnostic:
+    return error(
+        "MSN212",
+        file,
+        f"{name} is in `depends_on`, but {sql_file} doesn't have it as written,"
+        " so Mason can't tell that the SQL reads it.",
+        f"Write {name} in {sql_file} exactly as it is in `depends_on`, or remove it from"
+        " `depends_on`.",
+    )
+
+
 def _unresolved(file: str, read: sql.Found) -> Diagnostic:
     return error(
         "MSN201",
@@ -316,11 +347,17 @@ def _unqualified(file: str, name: sql.Found) -> Diagnostic:
 
 
 def _unparseable(file: str, failure: sql.Unparseable) -> Diagnostic:
+    fix = "Make the file one Databricks SQL query that runs on its own."
+    if not isinstance(failure, sql.NotAQuery):
+        fix += (
+            " If it runs on Databricks and Mason still can't parse it, list the tables it reads"
+            " under `depends_on` in its config file."
+        )
     return error(
         "MSN203",
         file,
         f"Mason can't read this SQL, so it can't tell what it reads. {failure.reason}",
-        "Make the file one Databricks SQL query that runs on its own.",
+        fix,
         failure.line,
     )
 
