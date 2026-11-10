@@ -10,7 +10,7 @@
 </div>
 <br>
 
-Mason brings the software development lifecycle to Databricks pipelines: config-driven pipelines from bronze to gold, reviewed in pull requests, tested, and promoted from dev to prod.
+Mason brings the software development lifecycle to Databricks. Today it covers pipelines, from bronze to gold: config-driven, reviewed in pull requests, tested, and promoted from dev to prod. It grows to cover more of the platform.
 
 **Status:** early development, and below 1.0, so a minor release may need edits to your project. Install it into your project with `uv add --dev mason-databricks`. The Plan shown on [nimblestax.com](https://nimblestax.com) is illustrative: Mason has no Plan command today.
 
