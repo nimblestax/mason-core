@@ -1,5 +1,6 @@
-# To release: merge a pull request that sets the version in pyproject.toml and adds
-# its section to docs/changelog.md, then run `just release::tag <version>` on main.
+# To release: merge a pull request that sets the version in pyproject.toml and renames
+# `## Unreleased` in docs/changelog.md to that version, then run `just release::tag <version>`
+# on main. Tagging refuses while lines are left under Unreleased.
 # The tag starts the release workflow, which runs the rest of these recipes.
 
 set working-directory := '..'

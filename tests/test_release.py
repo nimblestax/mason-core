@@ -128,6 +128,30 @@ def test_refuses_a_version_with_no_changelog_section(repo: Path, remote: Path) -
     assert_refused(result, remote, "docs/changelog.md has no section for 0.2.0.")
 
 
+def commit_changelog(repo: Path, text: str) -> None:
+    (repo / "docs" / "changelog.md").write_text(text)
+    git(repo, "commit", "-q", "-am", "Edit the changelog")
+    git(repo, "push", "-q", "origin", "main")
+
+
+def test_refuses_while_unreleased_holds_lines(repo: Path, remote: Path) -> None:
+    commit_changelog(repo, CHANGELOG.replace("## 0.1.0", "## Unreleased\n\n- Later.\n\n## 0.1.0"))
+
+    result = release(repo, "tag", "0.1.0")
+
+    reason = "docs/changelog.md has lines under ## Unreleased that 0.1.0 would leave out."
+    assert_refused(result, remote, reason)
+
+
+def test_tags_with_an_empty_unreleased_section(repo: Path, remote: Path) -> None:
+    commit_changelog(repo, CHANGELOG.replace("## 0.1.0", "## Unreleased\n\n## 0.1.0"))
+
+    result = release(repo, "tag", "0.1.0")
+
+    assert result.returncode == 0, result.stderr
+    assert git(remote, "tag", "--list") == "v0.1.0"
+
+
 def test_refuses_a_version_main_does_not_carry(repo: Path, remote: Path) -> None:
     result = release(repo, "tag", "0.0.1")
 
