@@ -2,7 +2,7 @@
 title: Platform Contract
 description: The shared facts about a project's platform.
 generated: true
-mason_version: 0.2.0
+mason_version: 0.3.0
 ---
 
 A file with `kind: platform`, at version 1. `mason schema platform` prints the same fields from the Mason you installed.

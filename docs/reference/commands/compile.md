@@ -2,7 +2,7 @@
 title: mason compile
 description: Write generated code, or print it for one Environment.
 generated: true
-mason_version: 0.2.0
+mason_version: 0.3.0
 ---
 
 ```console
