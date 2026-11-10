@@ -260,3 +260,14 @@ def test_generated_pages_say_nothing_private(tmp_path: Path):
 
     for name, text in generated_pages(tmp_path).items():
         assert not re.search(r"\bADRs?\b|nimblestax-internal|\bclients?\b", text), name
+
+
+def test_the_platform_page_lists_each_naming_style_as_a_choice(tmp_path: Path):
+    reference.write(tmp_path)
+
+    rows = field_rows((tmp_path / "reference/kinds/platform.md").read_text())
+    [style] = [row for row in rows if row[0] == "`naming.style`"]
+    assert style[1:3] == [
+        "one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs`",
+        "yes",
+    ]

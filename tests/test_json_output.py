@@ -264,6 +264,8 @@ REGISTERED_RULES = {
     "MSN121": "unlisted-domain-folder",
     "MSN122": "dev-host-missing",
     "MSN123": "two-default-environments",
+    "MSN124": "naming-patterns-not-supported",
+    "MSN125": "source-layers-fixed",
     "MSN201": "unresolved-logical-name",
     "MSN202": "duplicate-table",
     "MSN203": "unparseable-sql",
@@ -382,6 +384,13 @@ INVALID_PROJECTS = {
         PLATFORM,
         f"    host: {PLACEHOLDER_HOST}\n",
         f"    host: {PLACEHOLDER_HOST}\n    default: true\n  prod:\n    default: true\n",
+    ),
+    "MSN124": replacing(PLATFORM, "  style: domain-catalogs\n", '  catalog: "{env}"\n'),
+    "MSN125": lambda project: (project / PLATFORM).write_text(
+        "kind: platform\nversion: 1\nname: shop\nenvironments:\n  dev:\n"
+        f"    host: {PLACEHOLDER_HOST}\n"
+        'naming:\n  catalog: "{env}_{domain}"\n  schema: "{layer}"\n'
+        "  layers:\n    sources: [bronze, curated]\n    models: [gold]\ndomains:\n  - sales\n"
     ),
     "MSN201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "MSN202": seed("code: STRING", "code\nAU\n", name="orders"),

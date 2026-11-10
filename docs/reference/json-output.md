@@ -106,6 +106,8 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN121`](rules/msn121.md) | `unlisted-domain-folder` | A folder under `domains/` isn't listed in `domains` in `mason.platform.yaml`, in the same case, so nothing in it is validated or deployed. |
 | [`MSN122`](rules/msn122.md) | `dev-host-missing` | `mason.platform.yaml` has no `host` on the dev Environment. |
 | [`MSN123`](rules/msn123.md) | `two-default-environments` | More than one Environment in `mason.platform.yaml` sets `default: true`. |
+| [`MSN124`](rules/msn124.md) | `naming-patterns-not-supported` | `mason.platform.yaml` sets `catalog` and `schema` patterns that aren't a Naming Style, or sets any patterns at version 2, which takes only `naming.style`. |
+| [`MSN125`](rules/msn125.md) | `source-layers-fixed` | A version 1 `mason.platform.yaml` lists source Layers other than `[bronze, silver]`. |
 | [`MSN201`](rules/msn201.md) | `unresolved-logical-name` | SQL reads a table that isn't in the project. |
 | [`MSN202`](rules/msn202.md) | `duplicate-table` | A Seed and a Source in one Domain share a name, so they would be one table. |
 | [`MSN203`](rules/msn203.md) | `unparseable-sql` | A Gold Model's SQL doesn't parse as one Databricks SQL query. |

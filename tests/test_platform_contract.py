@@ -47,11 +47,11 @@ def failures(project: Path) -> list[dict]:
 @pytest.mark.parametrize(
     ("old", "new", "field"),
     [
-        ("version: 1\n", 'version: "1"\n', "version"),
-        ("version: 1\n", "version: true\n", "version"),
+        ("version: 2\n", 'version: "2"\n', "version"),
+        ("version: 2\n", "version: true\n", "version"),
         ("domains:\n", "colour: blue\ndomains:\n", "colour"),
         ("    models: [gold]\n", "    models: gold\n", "naming.layers.models"),
-        ('  schema: "{layer}"', "  schema: 7", "naming.schema"),
+        ("  style: domain-catalogs\n", "  style: 7\n", "naming.style"),
     ],
 )
 def test_a_bad_platform_contract_names_the_field_in_an_msn106(
@@ -77,7 +77,7 @@ def test_the_served_schema_passes_a_valid_contract_and_fails_invalid_ones(projec
     contract = yaml.safe_load((project / PLATFORM).read_text())
 
     assert list(validator.iter_errors(contract)) == []
-    for bad in ({"version": "1"}, {"version": True}, {"colour": "blue"}, {"name": 7}):
+    for bad in ({"version": "2"}, {"version": True}, {"colour": "blue"}, {"name": 7}):
         assert list(validator.iter_errors({**contract, **bad})), bad
 
 
@@ -96,7 +96,7 @@ def test_the_text_schema_lists_every_field_with_its_description():
     result = runner.invoke(app, ["schema", "platform"])
 
     assert result.exit_code == 0, result.output
-    assert "naming (required): The catalog and schema patterns" in result.stdout
+    assert "naming (required): The Naming Style" in result.stdout
     assert "domains (required)" in result.stdout
 
 
@@ -117,28 +117,43 @@ def test_a_repeated_domain_names_the_field(project: Path):
     assert "sales" in diagnostic["message"]
 
 
-class PlatformV2(BaseModel):
-    """A stand-in second version that renames `name` to `project`."""
+class PlatformV3(BaseModel):
+    """A stand-in third version that renames `name` to `project`."""
 
     model_config = platform.STRICT
 
     kind: Literal["platform"]
-    version: Literal[2]
+    version: Literal[3]
     project: str
 
 
-def upgrade_to_v2(old: platform.PlatformV1) -> PlatformV2:
-    return PlatformV2(kind="platform", version=2, project=old.name)
+def upgrade_to_v3(old: platform.PlatformV2) -> PlatformV3:
+    return PlatformV3(kind="platform", version=3, project=old.name)
 
 
-def test_a_version_1_contract_is_upgraded_to_the_latest_version(project: Path, monkeypatch):
-    monkeypatch.setattr(platform, "VERSIONS", {1: platform.PlatformV1, 2: PlatformV2})
-    monkeypatch.setattr(platform, "UPGRADES", {1: upgrade_to_v2})
-    written = yaml.safe_load((project / PLATFORM).read_text())
+VERSION_1 = (
+    "kind: platform\nversion: 1\nname: shop\nenvironments:\n  dev:\n"
+    "    host: https://dev.example.com\n"
+    'naming:\n  catalog: "{env}_{domain}"\n  schema: "{layer}"\n'
+    "  layers:\n    sources: [bronze, silver]\n    models: [gold]\ndomains:\n  - sales\n"
+)
 
-    upgraded = config.load(project, project / PLATFORM, platform.KIND, PlatformV2)
 
-    assert upgraded == PlatformV2(kind="platform", version=2, project=written["name"])
+@pytest.mark.parametrize("written", [1, 2])
+def test_a_contract_is_upgraded_through_every_step_to_the_latest_version(
+    project: Path, monkeypatch, written: int
+):
+    monkeypatch.setattr(
+        platform, "VERSIONS", {1: platform.PlatformV1, 2: platform.PlatformV2, 3: PlatformV3}
+    )
+    monkeypatch.setattr(platform, "UPGRADES", {1: platform.upgrade_to_v2, 2: upgrade_to_v3})
+    if written == 1:
+        (project / PLATFORM).write_text(VERSION_1)
+    name = yaml.safe_load((project / PLATFORM).read_text())["name"]
+
+    upgraded = config.load(project, project / PLATFORM, platform.KIND, PlatformV3)
+
+    assert upgraded == PlatformV3(kind="platform", version=3, project=name)
 
 
 @pytest.mark.parametrize(
@@ -151,11 +166,11 @@ def test_a_version_1_contract_is_upgraded_to_the_latest_version(project: Path, m
         ('  schema: "{layer!r}"', "naming.schema"),
     ],
 )
-def test_a_pattern_with_anything_but_known_placeholders_fails_with_an_msn106(
+def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_an_msn106(
     project: Path, new: str, field: str
 ):
     old = '  catalog: "{env}_{domain}"' if "catalog" in new else '  schema: "{layer}"'
-    edit(project, old, new)
+    (project / PLATFORM).write_text(VERSION_1.replace(old, new))
 
     [diagnostic] = failures(project)
 

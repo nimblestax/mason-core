@@ -39,6 +39,6 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `project` | string | The folder the project was created in. |
-| `naming_style` | string | The Naming Style its patterns were written from. |
+| `naming_style` | string | The Naming Style written into its Platform Contract. |
 | `catalogs` | array of string | The catalogs to create before deploying. |
 | `schemas` | array of string | The schemas to create before deploying, as `catalog.schema`. |

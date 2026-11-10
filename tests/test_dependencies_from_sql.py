@@ -367,30 +367,18 @@ def test_one_table_in_two_cases_is_one_read_and_one_typo_is_reported_once(projec
 
 
 NAMING_STYLES = {
-    "layer-catalogs": (
-        '"{env}_{layer}"',
-        '"{domain}"',
-        "{env}_silver.finance",
-        "{env}_gold.finance",
-    ),
-    "environment-catalogs": (
-        '"{env}"',
-        '"{domain}_{layer}"',
-        "{env}.finance_silver",
-        "{env}.finance_gold",
-    ),
+    "layer-catalogs": ("{env}_silver.finance", "{env}_gold.finance"),
+    "environment-catalogs": ("{env}.finance_silver", "{env}.finance_gold"),
 }
 
 
 @pytest.fixture(params=NAMING_STYLES, ids=list(NAMING_STYLES))
 def finance(project: Path, request) -> tuple[Path, str, str]:
     """A `finance` Domain holding the Source `invoices` and the Model `fct_invoices`."""
-    catalog, schema, silver, gold = NAMING_STYLES[request.param]
+    silver, gold = NAMING_STYLES[request.param]
     add_environment(project, "prod")
     platform = project / "mason.platform.yaml"
-    text = platform.read_text()
-    text = text.replace('catalog: "{env}_{domain}"', f"catalog: {catalog}")
-    text = text.replace('schema: "{layer}"', f"schema: {schema}")
+    text = platform.read_text().replace("style: domain-catalogs", f"style: {request.param}")
     platform.write_text(text.replace("  - sales\n", "  - sales\n  - finance\n"))
     folder = project / "domains/finance"
     (folder / "sources").mkdir(parents=True)

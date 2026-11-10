@@ -89,13 +89,15 @@ def test_a_source_lands_in_bronze_and_silver(project: Path):
     assert "STREAM(${catalog_sales_bronze}.${schema_sales_bronze}.orders)" in ingest
 
 
-def test_every_real_name_follows_the_platform_contract_patterns(project: Path):
+def test_every_real_name_follows_the_platform_contracts_naming_style(project: Path):
     contract = project / "mason.platform.yaml"
-    contract.write_text(contract.read_text().replace('"{env}_{domain}"', '"{env}_lake_{domain}"'))
+    contract.write_text(
+        contract.read_text().replace("style: domain-catalogs", "style: layer-catalogs")
+    )
 
     result = mason(project, "compile", "--env", "dev")
 
-    assert "dev_lake_sales.gold.fct_orders" in result.stdout
+    assert "dev_gold.sales.fct_orders" in result.stdout
     assert "dev_sales" not in result.stdout.replace("/Volumes/dev_sales", "")
 
 

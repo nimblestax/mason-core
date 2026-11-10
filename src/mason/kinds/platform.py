@@ -3,9 +3,10 @@
 from collections.abc import Callable
 from typing import Annotated, Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from pydantic_core import PydanticCustomError
 
+from mason import names
 from mason.kinds.base import STRICT, ExactInteger, Identifier, unique
 
 FILE_NAME = "mason.platform.yaml"
@@ -33,6 +34,29 @@ class Environment(BaseModel):
         " At most one Environment sets it; with none, dev is the default. `mason deploy` always"
         " needs `--env`.",
     )
+
+
+def _checked(environments: dict[str, Environment]) -> dict[str, Environment]:
+    """dev has a host, and at most one Environment is the default."""
+    dev = environments.get("dev")
+    if dev is None or dev.host is None:
+        # A rule ID as the error type reaches the user as that rule, with this fix.
+        raise PydanticCustomError(
+            "MSN122",
+            "dev has no `host`, and test and prod use dev's unless they set their own.",
+            {"fix": "Add `host` under `environments.dev`, set to dev's workspace URL."},
+        )
+    defaults = [env for env, settings in environments.items() if settings.default]
+    if len(defaults) > 1:
+        raise PydanticCustomError(
+            "MSN123",
+            "{defaults} each set `default: true`, and only one Environment can be the" " default.",
+            {
+                "defaults": " and ".join(defaults),
+                "fix": "Keep `default: true` on one Environment and remove it from the" " others.",
+            },
+        )
+    return environments
 
 
 class Layers(BaseModel):
@@ -81,7 +105,10 @@ class Naming(BaseModel):
 
 
 class PlatformV1(BaseModel):
-    """The shared facts about a project's platform."""
+    """The shared facts about a project's platform, as Mason 0.3.0 and before wrote them.
+
+    Read only to upgrade to version 2.
+    """
 
     model_config = ConfigDict(**STRICT, title="Mason Platform Contract")
 
@@ -102,27 +129,101 @@ class PlatformV1(BaseModel):
     @field_validator("environments")
     @classmethod
     def _dev_has_a_host(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
-        dev = environments.get("dev")
-        if dev is None or dev.host is None:
-            # A rule ID as the error type reaches the user as that rule, with this fix.
+        return _checked(environments)
+
+    @field_validator("domains")
+    @classmethod
+    def _domains_are_unique(cls, domains: list[str]) -> list[str]:
+        return unique(domains, "Domain")
+
+
+# The source Layers are fixed: every Source makes one table in each.
+SOURCE_LAYERS = ("bronze", "silver")
+
+# The values of `names.NAMING_STYLES`, which holds each style's patterns.
+NamingStyle = Literal["domain-catalogs", "layer-catalogs", "environment-catalogs"]
+
+
+def _style_choices(json_schema: dict[str, Any]) -> None:
+    """Each style as its own choice with a description, so editors explain it as they complete."""
+    json_schema.pop("enum", None)
+    json_schema.pop("type", None)
+    json_schema["oneOf"] = [
+        {
+            "const": style,
+            "description": f"`sales.silver.orders` is `{names.example_table(style)}` in prod.",
+        }
+        for style in names.NAMING_STYLES
+    ]
+
+
+class ModelLayers(BaseModel):
+    """The model Layers. The source Layers are always bronze and silver."""
+
+    model_config = STRICT
+
+    models: list[str] = Field(min_length=1, description="One or more model Layers.")
+
+
+class NamingV2(BaseModel):
+    """How Logical Names map to real catalogs and schemas."""
+
+    model_config = STRICT
+
+    style: NamingStyle = Field(
+        description="Where tables live. In prod, `sales.silver.orders` is "
+        + ", ".join(
+            f"`{names.example_table(style)}` under `{style}`" for style in names.NAMING_STYLES
+        )
+        + ".",
+        json_schema_extra=_style_choices,
+    )
+    layers: ModelLayers = Field(description="The model Layers.")
+
+    @model_validator(mode="before")
+    @classmethod
+    def _no_patterns(cls, naming: Any) -> Any:
+        if isinstance(naming, dict) and ("catalog" in naming or "schema" in naming):
             raise PydanticCustomError(
-                "MSN122",
-                "dev has no `host`, and test and prod use dev's unless they set their own.",
-                {"fix": "Add `host` under `environments.dev`, set to dev's workspace URL."},
-            )
-        defaults = [env for env, settings in environments.items() if settings.default]
-        if len(defaults) > 1:
-            raise PydanticCustomError(
-                "MSN123",
-                "{defaults} each set `default: true`, and only one Environment can be the"
-                " default.",
+                "MSN124",
+                "`naming` sets `catalog` and `schema` patterns, and version 2 takes only a"
+                " Naming Style.",
                 {
-                    "defaults": " and ".join(defaults),
-                    "fix": "Keep `default: true` on one Environment and remove it from the"
-                    " others.",
+                    "fix": "Replace `catalog` and `schema` with `style`, set to"
+                    f" {_style_list()}. Custom patterns aren't supported yet."
                 },
             )
-        return environments
+        return naming
+
+
+def _style_list() -> str:
+    *first, last = (f"`{style}`" for style in names.NAMING_STYLES)
+    return f"{', '.join(first)} or {last}"
+
+
+class PlatformV2(BaseModel):
+    """The shared facts about a project's platform."""
+
+    model_config = ConfigDict(**STRICT, title="Mason Platform Contract")
+
+    kind: Literal["platform"] = Field(description="The Kind of this file.")
+    version: Annotated[Literal[2], ExactInteger] = Field(
+        description="The schema version of this Kind."
+    )
+    name: str = Field(min_length=1, description="The project's name.")
+    environments: dict[str, Environment] = Field(
+        min_length=1, description="Settings per Environment."
+    )
+    naming: NamingV2 = Field(description="The Naming Style, and the model Layers.")
+    domains: list[Identifier] = Field(
+        json_schema_extra={"uniqueItems": True},
+        description="The Domains, one folder each under `domains/`.",
+    )
+
+    @field_validator("environments")
+    @classmethod
+    def _dev_has_a_host(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
+        return _checked(environments)
 
     @field_validator("domains")
     @classmethod
@@ -143,17 +244,55 @@ class PlatformV1(BaseModel):
 
     @property
     def source_layers(self) -> tuple[str, str]:
-        bronze, silver = self.naming.layers.sources
-        return bronze, silver
+        return SOURCE_LAYERS
 
     @property
     def model_layers(self) -> tuple[str, ...]:
         return tuple(self.naming.layers.models)
 
 
-VERSIONS: dict[int, type[BaseModel]] = {1: PlatformV1}
-Platform = PlatformV1
+def upgrade_to_v2(old: PlatformV1) -> PlatformV2:
+    """Patterns that match a Naming Style become that style. Anything else can't be kept."""
+    if tuple(old.naming.layers.sources) != SOURCE_LAYERS:
+        raise PydanticCustomError(
+            "MSN125",
+            "`naming.layers.sources` is {sources}, and the source Layers are always bronze"
+            " and silver.",
+            {
+                "sources": f"`[{', '.join(old.naming.layers.sources)}]`",
+                "fix": "Remove `naming.layers.sources`. To add a Layer, add it to"
+                " `naming.layers.models`.",
+            },
+        )
+    catalog, schema = old.naming.catalog_pattern, old.naming.schema_pattern
+    style = names.style_for(catalog, schema)
+    if style is None:
+        closest = names.closest_style(catalog, schema)
+        raise PydanticCustomError(
+            "MSN124",
+            "`naming` sets the patterns {patterns}, which aren't a Naming Style. The closest"
+            " is {closest}. Custom patterns aren't supported yet.",
+            {
+                "patterns": f"`{catalog}` / `{schema}`",
+                "closest": f"`{closest}`",
+                "fix": f"Set `version: 2`, and replace `catalog` and `schema` with `style:"
+                f" {closest}` or another Naming Style. If the project is deployed, check where"
+                " the style puts its tables first: a new style moves them.",
+            },
+        )
+    return PlatformV2.model_validate(
+        {
+            **old.model_dump(include={"kind", "name", "environments", "domains"}),
+            "version": 2,
+            "naming": {"style": style, "layers": {"models": old.naming.layers.models}},
+        }
+    )
+
+
+VERSIONS: dict[int, type[BaseModel]] = {1: PlatformV1, 2: PlatformV2}
+Platform = PlatformV2
 
 # `UPGRADES[n]` turns version n into version n + 1. A new version adds its model to `VERSIONS`,
-# points `Platform` at it, and adds one step here.
-UPGRADES: dict[int, Callable[[Any], BaseModel]] = {}
+# points `Platform` at it, and adds one step here. A step that can't upgrade a file raises a
+# `PydanticCustomError` whose type is the Rule it breaks, with the fix in its context.
+UPGRADES: dict[int, Callable[[Any], BaseModel]] = {1: upgrade_to_v2}

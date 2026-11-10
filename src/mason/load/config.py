@@ -5,6 +5,7 @@ from typing import Any
 
 import yaml
 from pydantic import BaseModel, ValidationError
+from pydantic_core import PydanticCustomError
 
 from mason.diagnostics import RULES, Diagnostic, Failure, error
 from mason.kinds import KINDS, versions
@@ -55,8 +56,12 @@ def _validate(relative: str, kind: str, content: dict) -> list[Diagnostic] | Bas
         document = module.VERSIONS[version].model_validate(content)
     except ValidationError as problems:
         return [_diagnostic(relative, kind, item) for item in problems.errors()]
-    for step in range(version, max(module.VERSIONS)):
-        document = module.UPGRADES[step](document)
+    try:
+        for step in range(version, max(module.VERSIONS)):
+            document = module.UPGRADES[step](document)
+    except PydanticCustomError as problem:
+        fix = (problem.context or {}).get("fix", "")  # Every step that raises gives one.
+        return [error(problem.type, relative, problem.message(), fix)]
     return document
 
 
