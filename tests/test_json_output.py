@@ -6,13 +6,11 @@ import subprocess
 import sys
 from collections.abc import Callable
 from pathlib import Path
-from typing import Any
 
 import pytest
-from typer.main import get_command
 from typer.testing import CliRunner
 
-from mason.cli import PASSED_THROUGH, app
+from mason.cli import PASSED_THROUGH, app, every_command
 from mason.deploy import pinned_cli
 from mason.diagnostics import DOCS, RULES, error
 from mason.scaffold import PLACEHOLDER_HOST
@@ -67,6 +65,13 @@ def test_validate_prints_an_envelope_with_the_rule_id_and_exits_1(project: Path)
                 "naming_style": "domain-catalogs",
                 "catalogs": ["dev_sales"],
                 "schemas": ["dev_sales.bronze", "dev_sales.silver", "dev_sales.gold"],
+                "skills": [
+                    ".agents/skills/mason-add-model",
+                    ".claude/skills/mason-add-model",
+                    ".agents/skills/mason-add-source",
+                    ".claude/skills/mason-add-source",
+                ],
+                "skills_left_alone": [],
             },
         ),
         (["validate"], {}),
@@ -99,9 +104,8 @@ def test_compile_for_an_environment_returns_the_sql_in_the_envelope(project: Pat
 
 def test_every_registered_command_has_the_json_option():
     """A new command that doesn't register through the shared wrapper fails here."""
-    group: Any = get_command(app)
-    commands = group.commands
-    assert {"init", "validate", "schema", "compile", "deploy"} <= set(commands)
+    commands = every_command()
+    assert {"init", "validate", "schema", "compile", "deploy", "skills update"} <= set(commands)
     for name, registered in commands.items():
         if name in PASSED_THROUGH:
             continue  # Its arguments, `--json` among them, belong to the CLI it runs.
@@ -269,6 +273,7 @@ REGISTERED_RULES = {
     "MSN126": "model-layer-named-like-a-source-layer",
     "MSN127": "model-outside-a-layer",
     "MSN128": "production-shares-a-workspace",
+    "MSN129": "skill-version-drift",
     "MSN201": "unresolved-logical-name",
     "MSN202": "duplicate-table",
     "MSN203": "unparseable-sql",
@@ -295,6 +300,8 @@ REGISTERED_RULES = {
     "MSN911": "databricks-cli-unsupported",
     "MSN912": "databricks-cli-download-failed",
     "MSN913": "no-databricks-cli-for-platform",
+    "MSN914": "skills-folder-ignored",
+    "MSN915": "skill-edited",
 }
 
 
@@ -451,12 +458,13 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 
 def test_a_new_rule_must_be_tested_here():
-    """The tests above, and the refresh failure, init folder, pinned CLI and platform check tests,
-    cover these by name. A new rule joins one."""
+    """The tests above, and the refresh failure, init folder, pinned CLI, platform check and
+    skills tests, cover these by name. A new rule joins one."""
     usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905", "MSN909"}
     refresh_failures = {"MSN906", "MSN907", "MSN908"}
     pinned_cli_failures = {"MSN910", "MSN911", "MSN912", "MSN913"}
     platform_checks = {"MSN128", "MSN301", "MSN302"}
+    skills = {"MSN129", "MSN914", "MSN915"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)
@@ -464,6 +472,7 @@ def test_a_new_rule_must_be_tested_here():
         | refresh_failures
         | pinned_cli_failures
         | platform_checks
+        | skills
     )
 
 

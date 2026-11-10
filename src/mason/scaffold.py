@@ -30,6 +30,18 @@ def refuse_existing_project(root: Path) -> None:
         raise Failure([found], USAGE_OR_ENVIRONMENT)
 
 
+def require_project(root: Path) -> None:
+    """For a command that writes into a project, so it never writes into another folder."""
+    if not (root / platform.FILE_NAME).is_file():
+        found = error(
+            "MSN107",
+            platform.FILE_NAME,
+            f"{root} holds no Mason project, so there's no `{platform.FILE_NAME}` to read.",
+            "Run the command in a project's folder, or give it one with `--project <folder>`.",
+        )
+        raise Failure([found], USAGE_OR_ENVIRONMENT)
+
+
 def write_project(root: Path, host: str, ci: str, naming_style: str) -> None:
     name = re.sub(r"\W+", "_", root.resolve().name).strip("_").lower()
     # The starter Source reads a volume in the sales Domain's bronze, wherever the style puts it.

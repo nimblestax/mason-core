@@ -66,6 +66,7 @@ Each command's page describes its `result`.
 - [`mason schema`](commands/schema.md): Print a Kind's fields from the installed Mason. Needs no project.
 - [`mason compile`](commands/compile.md): Write generated code, or print it for one Environment.
 - [`mason deploy`](commands/deploy.md): Deploy to an Environment and refresh its tables.
+- [`mason skills update`](commands/skills-update.md): Refresh both copies of each Mason Skill to this Mason's version.
 
 ## Exit codes
 
@@ -111,6 +112,7 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN126`](rules/msn126.md) | `model-layer-named-like-a-source-layer` | A model Layer in `naming.layers.models` is called `bronze` or `silver`, in any case. |
 | [`MSN127`](rules/msn127.md) | `model-outside-a-layer` | A file sits directly in a Domain's `models/` folder, or in a first folder under it that isn't a model Layer in `naming.layers.models`. |
 | [`MSN128`](rules/msn128.md) | `production-shares-a-workspace` | `prod` uses the same workspace as another Environment. This is a warning, and `mason validate` still passes. |
+| [`MSN129`](rules/msn129.md) | `skill-version-drift` | A Mason Skill in `.agents/skills/` or `.claude/skills/` was written by another version of Mason than the one installed. |
 | [`MSN201`](rules/msn201.md) | `unresolved-logical-name` | SQL reads a table that isn't in the project. |
 | [`MSN202`](rules/msn202.md) | `duplicate-table` | A Seed and a Source in one Domain share a name, so they would be one table. |
 | [`MSN203`](rules/msn203.md) | `unparseable-sql` | A Gold Model's SQL doesn't parse as one Databricks SQL query. |
@@ -137,6 +139,8 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN911`](rules/msn911.md) | `databricks-cli-unsupported` | `MASON_DATABRICKS_CLI` names a Databricks CLI older than this Mason supports. |
 | [`MSN912`](rules/msn912.md) | `databricks-cli-download-failed` | Mason couldn't download its Databricks CLI. |
 | [`MSN913`](rules/msn913.md) | `no-databricks-cli-for-platform` | Databricks publishes no CLI for this operating system and architecture. |
+| [`MSN914`](rules/msn914.md) | `skills-folder-ignored` | `mason init` wrote Mason Skills into a folder Git ignores, such as `.claude/`. |
+| [`MSN915`](rules/msn915.md) | `skill-edited` | `mason skills update` found a Mason Skill edited since Mason wrote it. |
 
 `mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project, and so does every `MSN3xx` rule, which `mason validate --platform` finds in the workspace. A diagnostic with `severity` set to `warning`, such as `MSN128`, is reported and the command still exits 0.
 

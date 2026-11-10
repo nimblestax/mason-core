@@ -17,7 +17,7 @@ import typer
 from pydantic import BaseModel, Field
 from typer.core import TyperGroup
 
-from mason import names, output, scaffold
+from mason import names, output, scaffold, skills
 from mason.build import compiler
 from mason.check import platform_objects, rules
 from mason.deploy import deploy as delivery
@@ -94,6 +94,11 @@ class Ci(StrEnum):
     github = "github"
 
 
+class Skills(StrEnum):
+    all = "all"
+    none = "none"
+
+
 class NamingStyle(StrEnum):
     """Matches `names.NAMING_STYLES`, in the order `mason init` offers them."""
 
@@ -118,11 +123,40 @@ class Outcome[Result: BaseModel]:
     warnings: list[Diagnostic] = field(default_factory=list)
 
 
-def command(name: str | None = None) -> Callable:
+skills_app = typer.Typer(no_args_is_help=True, help="Keep the Mason Skills in this project.")
+app.add_typer(skills_app, name="skills")
+# Command groups by name. A command in one is labelled `<group>.<command>`, as in its schema.
+GROUPS = {"skills": skills_app}
+
+
+def every_command() -> dict[str, Any]:
+    """Each command by its full name, such as `skills update`, with its group opened up."""
+    group: Any = typer.main.get_command(app)
+    found = {}
+    for name, registered in group.commands.items():
+        if name in GROUPS:
+            found |= {f"{name} {inner}": cmd for inner, cmd in registered.commands.items()}
+        else:
+            found[name] = registered
+    return found
+
+
+def callbacks() -> dict[str, Any]:
+    """The function behind each command, by its full name."""
+    found: dict[str, Any] = {}
+    for prefix, typed in [("", app), *((f"{name} ", typed) for name, typed in GROUPS.items())]:
+        for info in typed.registered_commands:
+            if info.name:  # Only `mason databricks` has none, and it prints no result.
+                found[prefix + info.name] = info.callback
+    return found
+
+
+def command(name: str | None = None, group: str | None = None) -> Callable:
     """Registers a command, which gets `--json` and returns an Outcome or raises a Failure."""
 
     def register(run: Any) -> Any:
-        label = name or run.__name__
+        registered_as = name or run.__name__
+        label = f"{group}.{registered_as}" if group else registered_as
 
         def finish(*args: Any, as_json: bool = False, **kwargs: Any) -> None:
             try:
@@ -152,7 +186,7 @@ def command(name: str | None = None) -> Callable:
             parameters=parameters, return_annotation=None
         )
         wrapped.__annotations__ = {**run.__annotations__, "as_json": JsonOption}
-        return app.command(label)(wrapped)
+        return (GROUPS[group] if group else app).command(registered_as)(wrapped)
 
     return register
 
@@ -208,6 +242,10 @@ class Created(BaseModel):
     schemas: list[str] = Field(
         description="The schemas to create before deploying, as `catalog.schema`."
     )
+    skills: list[str] = Field(description="The Mason Skill folders written.")
+    skills_left_alone: list[str] = Field(
+        description="The Mason Skill folders that already existed, which were left as they were."
+    )
 
 
 @command()
@@ -221,6 +259,14 @@ def init(
             help="Where tables live. Asked at a terminal when left out; otherwise domain-catalogs.",
         ),
     ] = None,
+    with_skills: Annotated[
+        Skills,
+        typer.Option(
+            "--skills",
+            help="Mason Skills to write for coding agents, into `.agents/skills/` and"
+            " `.claude/skills/`.",
+        ),
+    ] = Skills.all,
     folder: Annotated[
         Path,
         typer.Argument(
@@ -236,11 +282,17 @@ def init(
         _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
     )
     scaffold.write_project(folder, host, ci.value, style.value)
+    installed = skills.install(folder) if with_skills == Skills.all else skills.Installed([], [])
     catalogs, schemas = names.platform_objects(project.load(folder).platform)
     created = Created(
-        project=str(folder), naming_style=style.value, catalogs=catalogs, schemas=schemas
+        project=str(folder),
+        naming_style=style.value,
+        catalogs=catalogs,
+        schemas=schemas,
+        skills=installed.written,
+        skills_left_alone=installed.left_alone,
     )
-    return Outcome(_created_text(created), created)
+    return Outcome(_created_text(created), created, skills.ignored(folder))
 
 
 def _at_a_terminal() -> bool:
@@ -274,6 +326,14 @@ def _created_text(created: Created) -> str:
         "  Schemas:",
         *(f"    {schema}" for schema in created.schemas),
     ]
+    if created.skills:
+        lines += ["", "Wrote Mason Skills for coding agents:", *(f"  {s}" for s in created.skills)]
+    if created.skills_left_alone:
+        lines += [
+            "",
+            "Left these skill folders as they were:",
+            *(f"  {s}" for s in created.skills_left_alone),
+        ]
     return "\n".join(lines)
 
 
@@ -312,6 +372,7 @@ def validate(
         checked = env or loaded.platform.default_environment
         _require_environment(loaded, checked)
         problems += platform_objects.check(loaded, checked, DatabricksCli())
+    problems += skills.drift(root)
     if errors(problems):
         raise Failure(problems)
     return Outcome("Valid.", Valid(), warnings=problems)
@@ -325,6 +386,30 @@ _ENV_WITHOUT_PLATFORM = error(
     " missing. Without it, `mason validate` reads no workspace.",
     "Add `--platform`, such as `mason validate --platform --env dev`, or remove `--env`.",
 )
+
+
+class SkillsUpdated(BaseModel):
+    skills: list[str] = Field(
+        description="The Mason Skill folders written. A skill already up to date isn't listed."
+    )
+
+
+@command("update", group="skills")
+def skills_update(
+    force: Annotated[
+        bool,
+        typer.Option("--force", help="Replace skills edited since Mason wrote them."),
+    ] = False,
+    root: ProjectOption = Path("."),
+) -> Outcome[SkillsUpdated]:
+    """Refresh both copies of each Mason Skill to this Mason's version."""
+    scaffold.require_project(root)
+    written = skills.update(root, force)
+    updated = SkillsUpdated(skills=written)
+    if not written:
+        return Outcome("Every Mason Skill is up to date.", updated)
+    lines = ["Updated these Mason Skills. Commit them:", *(f"  {skill}" for skill in written)]
+    return Outcome("\n".join(lines), updated)
 
 
 class KindSchema(BaseModel):

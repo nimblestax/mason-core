@@ -32,6 +32,8 @@ class Rule:
     example: Example
     fix: str
     principle: Principle | None = None
+    # A warning is reported but never fails a command, so it doesn't change the exit code.
+    severity: str = "error"
 
 
 CODE_NAMES_TABLES_LOGICALLY = Principle(
@@ -507,6 +509,26 @@ RULES = {
         ),
         fix="Give prod its own `host` when you can. Until then, keep each Environment's CI"
         " identity and grants separate.",
+        severity="warning",
+    ),
+    "MSN129": Rule(
+        "skill-version-drift",
+        checks="A Mason Skill in `.agents/skills/` or `.claude/skills/` was written by another"
+        " version of Mason than the one installed.",
+        why="Mason Skills guide a coding agent through Mason's commands, and each one records"
+        " the Mason version that wrote it. A skill from another version can name commands,"
+        " options or steps the installed Mason doesn't have, so an agent follows stale steps."
+        " This is a warning: `mason validate` still passes.",
+        example=Example(
+            {
+                ".agents/skills/mason-add-source/SKILL.md": "---\nname: mason-add-source\n"
+                "description: Add a Source to a Mason project.\nmetadata:\n"
+                '  mason-version: "0.1.0"\n---\n\n# Add a Source\n'
+            }
+        ),
+        fix="Run `mason skills update`, which refreshes both copies of each skill, and commit"
+        " them.",
+        severity="warning",
     ),
     "MSN201": Rule(
         "unresolved-logical-name",
@@ -844,5 +866,29 @@ RULES = {
         example=Example(command="mason deploy --env dev", when="Mason runs on 32-bit Linux."),
         fix="Build or install a Databricks CLI for this machine and point"
         " `MASON_DATABRICKS_CLI` at it.",
+    ),
+    "MSN914": Rule(
+        "skills-folder-ignored",
+        checks="`mason init` wrote Mason Skills into a folder Git ignores, such as `.claude/`.",
+        why="Mason Skills are committed, so everyone on the team, and CI, gets the same version,"
+        " and a change to a skill is reviewed in a pull request. In a folder Git ignores, the"
+        " skills stay on one machine. This is a warning: `mason init` still succeeds.",
+        example=Example(command="mason init", when="The repo's `.gitignore` lists `.claude/`."),
+        fix="Stop ignoring the folder the diagnostic names, or only its `skills/mason-*`"
+        " folders, with a line such as `!.claude/skills/` in `.gitignore`, then commit them.",
+        severity="warning",
+    ),
+    "MSN915": Rule(
+        "skill-edited",
+        checks="`mason skills update` found a Mason Skill edited since Mason wrote it.",
+        why="Each Mason Skill records a digest of the text Mason wrote. A skill whose text no"
+        " longer matches was edited, and updating it would lose the edit, so `mason skills"
+        " update` writes nothing and shows the difference instead. Exits 2.",
+        example=Example(
+            command="mason skills update",
+            when="A step was added to `.claude/skills/mason-add-model/SKILL.md`.",
+        ),
+        fix="Move your edit into a skill of your own, outside the `mason-*` folders, and run"
+        " `mason skills update` again. To replace the edit, run `mason skills update --force`.",
     ),
 }
