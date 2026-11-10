@@ -7,7 +7,7 @@ redirects:
 - json-output
 ---
 
-Every `mason` command accepts `--json`. It prints one envelope on stdout and nothing else there. Logs, including the Databricks CLI's output, go to stderr.
+Every `mason` command but [`mason databricks`](commands/databricks.md), which hands its arguments to the Databricks CLI, accepts `--json`. It prints one envelope on stdout and nothing else there. Logs, including the Databricks CLI's output, go to stderr.
 
 ```json
 {
@@ -119,13 +119,17 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN211`](rules/msn211.md) | `stream-of-upsert-silver` | A Gold Model reads silver that has `keys` with `STREAM(...)`. |
 | [`MSN901`](rules/msn901.md) | `usage-error` | The command line is wrong. |
 | [`MSN902`](rules/msn902.md) | `unknown-environment` | `--env` isn't an Environment in the project. |
-| [`MSN903`](rules/msn903.md) | `databricks-cli-missing` | `databricks` isn't on the PATH. |
+| [`MSN903`](rules/msn903.md) | `databricks-cli-missing` | `MASON_DATABRICKS_CLI` names a Databricks CLI that Mason can't run. |
 | [`MSN904`](rules/msn904.md) | `databricks-command-failed` | A Databricks CLI command failed. |
 | [`MSN905`](rules/msn905.md) | `unexpected-error` | Mason stopped on something it didn't expect, with a traceback on stderr. |
 | [`MSN906`](rules/msn906.md) | `pipeline-column-not-found` | The refresh failed because a pipeline names a column its table doesn't have, often an Expectation on a column bronze doesn't have yet. |
 | [`MSN907`](rules/msn907.md) | `expectation-failed` | The refresh failed because a row broke an Expectation whose `action` is `fail`. |
 | [`MSN908`](rules/msn908.md) | `pipeline-failed` | The refresh failed with another pipeline error. The message is the pipeline's own. |
 | [`MSN909`](rules/msn909.md) | `project-already-exists` | `mason init` was run in a folder that already holds `mason.platform.yaml`. |
+| [`MSN910`](rules/msn910.md) | `databricks-cli-checksum-mismatch` | The Databricks CLI Mason downloaded doesn't match the checksum its release names. |
+| [`MSN911`](rules/msn911.md) | `databricks-cli-unsupported` | `MASON_DATABRICKS_CLI` names a Databricks CLI older than this Mason supports. |
+| [`MSN912`](rules/msn912.md) | `databricks-cli-download-failed` | Mason couldn't download its Databricks CLI. |
+| [`MSN913`](rules/msn913.md) | `no-databricks-cli-for-platform` | Databricks publishes no CLI for this operating system and architecture. |
 
 `mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project.
 

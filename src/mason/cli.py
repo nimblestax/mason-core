@@ -1,11 +1,13 @@
 """The `mason` command. Commands stay thin and work on one loaded Project."""
 
+import subprocess
 import sys
 import traceback
 from collections.abc import Callable
 from dataclasses import dataclass
 from enum import StrEnum
 from functools import wraps
+from importlib.metadata import version
 from inspect import Parameter, signature
 from pathlib import Path
 from typing import Annotated, Any, NoReturn
@@ -19,6 +21,7 @@ from mason import names, output, scaffold
 from mason.build import compiler
 from mason.check import rules
 from mason.deploy import deploy as delivery
+from mason.deploy import pinned_cli
 from mason.deploy.databricks import DatabricksCli
 from mason.diagnostics import EXIT_CODES, USAGE_OR_ENVIRONMENT, Diagnostic, Failure, error
 from mason.kinds import KINDS, latest_schema, platform
@@ -48,7 +51,36 @@ class ReportingGroup(TyperGroup):
             _report_failure(label or "usage", True, Failure([found], USAGE_OR_ENVIRONMENT))
 
 
+# Commands that hand every argument to another program, so they print no envelope.
+PASSED_THROUGH = {"databricks"}
+
 app = typer.Typer(cls=ReportingGroup, no_args_is_help=True, add_completion=False, epilog=EPILOG)
+
+
+def _print_versions(asked: bool) -> None:
+    if not asked:
+        return
+    typer.echo(f"mason {version('mason-databricks')}")
+    try:
+        typer.echo(f"Databricks CLI {pinned_cli.running_version()}")
+    except Failure as failure:
+        _report_failure("version", False, failure)
+    raise typer.Exit()
+
+
+@app.callback()
+def main(
+    show_version: Annotated[
+        bool,
+        typer.Option(
+            "--version",
+            help="Print Mason's version and the Databricks CLI version it runs.",
+            callback=_print_versions,
+            is_eager=True,
+        ),
+    ] = False,
+) -> None:
+    """Bring the software development lifecycle to Databricks pipelines."""
 
 
 class Ci(StrEnum):
@@ -328,3 +360,17 @@ _DEPLOY_WITHOUT_ENV = error(
     " default Environment.",
     "Add the Environment to deploy, such as `mason deploy --env dev`.",
 )
+
+
+@app.command(
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+    add_help_option=False,
+)
+def databricks(context: typer.Context) -> None:
+    """Run the Databricks CLI Mason runs, with your arguments passed through."""
+    try:
+        executable = pinned_cli.databricks()
+    except Failure as failure:
+        _report_failure("databricks", False, failure)
+    ran = subprocess.run([executable, *context.args])
+    raise typer.Exit(ran.returncode)

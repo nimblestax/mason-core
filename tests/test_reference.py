@@ -11,7 +11,7 @@ from typer.main import get_command
 from typer.testing import CliRunner
 
 from mason import reference
-from mason.cli import app
+from mason.cli import PASSED_THROUGH, app
 from mason.diagnostics import EXIT_CODES
 from mason.kinds import KINDS, latest_schema
 from mason.registry import RULES, Example
@@ -196,10 +196,21 @@ def test_every_command_gets_a_page_listing_its_options_and_exit_codes(tmp_path: 
         assert page["title"] == f"mason {name}"
         assert page["description"] == registered.help
         assert page["generated"] is True
+        if name in PASSED_THROUGH:
+            continue  # Its arguments and exit codes are the Databricks CLI's.
         for parameter in registered.params:
             assert f"`{parameter.opts[0]}`" in text, f"{name} {parameter.opts[0]}"
         for code, meaning in EXIT_CODES.items():
             assert f"| {code} | {meaning} |" in text
+
+
+def test_the_databricks_page_says_its_arguments_and_exit_code_are_the_clis(tmp_path: Path):
+    reference.write(tmp_path)
+
+    text = (tmp_path / "reference/commands/databricks.md").read_text()
+    assert "$ mason databricks <arguments>" in text
+    assert "exits with its exit code" in text
+    assert "## JSON result" not in text
 
 
 @pytest.mark.parametrize(

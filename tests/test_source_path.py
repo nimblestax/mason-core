@@ -10,6 +10,7 @@ import yaml
 from typer.testing import CliRunner
 
 from mason.cli import app
+from mason.deploy import pinned_cli
 
 runner = CliRunner()
 
@@ -159,7 +160,7 @@ def test_every_target_passes_its_own_path_to_the_pipeline(tmp_path: Path, stub_w
         "DATABRICKS_TOKEN": "not-a-real-token",
     }
     validated = subprocess.run(
-        ["databricks", "bundle", "validate", "--target", "prod", "--output", "json"],
+        [pinned_cli.databricks(), "bundle", "validate", "--target", "prod", "--output", "json"],
         cwd=tmp_path / "build",
         env=environment,
         capture_output=True,

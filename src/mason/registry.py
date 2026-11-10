@@ -571,14 +571,18 @@ RULES = {
     ),
     "MSN903": Rule(
         "databricks-cli-missing",
-        checks="`databricks` isn't on the PATH.",
-        why="Mason deploys through the Databricks CLI. It isn't installed, or isn't on the PATH"
-        " of the shell that ran Mason, such as a CI job.",
+        checks="`MASON_DATABRICKS_CLI` names a Databricks CLI that Mason can't run.",
+        why="Mason runs its own pinned Databricks CLI, which it downloads the first time it"
+        " needs it. `MASON_DATABRICKS_CLI` points Mason at a CLI you installed yourself instead,"
+        " for a machine that can't download one. The file it names doesn't exist, or this"
+        " machine can't run it.",
         example=Example(
-            command="mason deploy --env dev", when="The Databricks CLI isn't installed."
+            command="mason deploy --env dev",
+            when="`MASON_DATABRICKS_CLI` is set to `/opt/databricks/databricks`, which doesn't"
+            " exist.",
         ),
-        fix="Install the Databricks CLI and put `databricks` on your PATH."
-        " `databricks --version` checks it.",
+        fix="Point `MASON_DATABRICKS_CLI` at the Databricks CLI's binary, or unset it so Mason"
+        " downloads its own.",
     ),
     "MSN904": Rule(
         "databricks-command-failed",
@@ -592,7 +596,7 @@ RULES = {
             when="The Databricks CLI isn't signed in to the dev workspace.",
         ),
         fix="Read the Databricks CLI's log on stderr, fix what it names, and run the command"
-        " again. `databricks auth describe` checks how the CLI signs in.",
+        " again. `mason databricks auth describe` checks how the CLI signs in.",
     ),
     "MSN905": Rule(
         "unexpected-error",
@@ -658,5 +662,56 @@ RULES = {
         " instead. Other files in the folder are fine, so a new Git repo with a README works.",
         example=Example(command="mason init"),
         fix="Run `mason init` in another folder, or give it one, as `mason init <folder>`.",
+    ),
+    "MSN910": Rule(
+        "databricks-cli-checksum-mismatch",
+        checks="The Databricks CLI Mason downloaded doesn't match the checksum its release names.",
+        why="Each Mason release names one Databricks CLI version and the checksum of each"
+        " platform's archive. Mason downloads that archive from Databricks' GitHub releases the"
+        " first time it needs the CLI. An archive that doesn't match was changed or cut short on"
+        " the way, so Mason doesn't install it and runs nothing.",
+        example=Example(
+            command="mason deploy --env dev",
+            when="A proxy between you and GitHub changes the archive Mason downloads.",
+        ),
+        fix="Run the command again. If it fails again, something between you and GitHub is"
+        " changing the download: check your proxy, or point `MASON_DATABRICKS_CLI` at a"
+        " Databricks CLI you installed yourself.",
+    ),
+    "MSN911": Rule(
+        "databricks-cli-unsupported",
+        checks="`MASON_DATABRICKS_CLI` names a Databricks CLI older than this Mason supports.",
+        why="Each Mason release is tested with one Databricks CLI version and names the oldest"
+        " it supports. An older CLI can deploy the same project differently, so Mason refuses it"
+        " and runs nothing. A CLI that doesn't report its version is refused too.",
+        example=Example(
+            command="mason deploy --env dev",
+            when="`MASON_DATABRICKS_CLI` names a Databricks CLI at version 0.240.0.",
+        ),
+        fix="Point `MASON_DATABRICKS_CLI` at the Databricks CLI version the diagnostic names,"
+        " or unset it so Mason downloads its own.",
+    ),
+    "MSN912": Rule(
+        "databricks-cli-download-failed",
+        checks="Mason couldn't download its Databricks CLI.",
+        why="Mason downloads its pinned Databricks CLI from Databricks' GitHub releases the first"
+        " time it needs it, then reuses it. This machine couldn't reach GitHub, or GitHub"
+        " refused the download. Mason honours `HTTPS_PROXY` and `NO_PROXY`.",
+        example=Example(
+            command="mason deploy --env dev",
+            when="This machine has no internet access and no proxy is set.",
+        ),
+        fix="Check the machine can reach github.com, setting `HTTPS_PROXY` if it needs a proxy."
+        " On a machine that can't reach it at all, install the Databricks CLI yourself and point"
+        " `MASON_DATABRICKS_CLI` at it.",
+    ),
+    "MSN913": Rule(
+        "no-databricks-cli-for-platform",
+        checks="Databricks publishes no CLI for this operating system and architecture.",
+        why="Mason downloads the Databricks CLI archive for this machine. Databricks publishes"
+        " one for Linux, macOS and Windows, each on x86-64 and ARM, and nothing else.",
+        example=Example(command="mason deploy --env dev", when="Mason runs on 32-bit Linux."),
+        fix="Build or install a Databricks CLI for this machine and point"
+        " `MASON_DATABRICKS_CLI` at it.",
     ),
 }

@@ -12,7 +12,8 @@ import pytest
 from typer.main import get_command
 from typer.testing import CliRunner
 
-from mason.cli import app
+from mason.cli import PASSED_THROUGH, app
+from mason.deploy import pinned_cli
 from mason.diagnostics import DOCS, RULES, error
 from mason.scaffold import PLACEHOLDER_HOST
 
@@ -102,31 +103,38 @@ def test_every_registered_command_has_the_json_option():
     commands = group.commands
     assert {"init", "validate", "schema", "compile", "deploy"} <= set(commands)
     for name, registered in commands.items():
+        if name in PASSED_THROUGH:
+            continue  # Its arguments, `--json` among them, belong to the CLI it runs.
         options = [option for parameter in registered.params for option in parameter.opts]
         assert "--json" in options, f"`mason {name}` has no --json"
 
 
-def run_mason(*args: str, path: Path) -> subprocess.CompletedProcess:
+def run_mason(*args: str, databricks: Path) -> subprocess.CompletedProcess:
     """The installed command in its own process, so stdout and stderr are the real ones."""
     executable = Path(sys.executable).with_name("mason")
-    return subprocess.run(
-        [executable, *args], capture_output=True, text=True, env={"PATH": str(path)}
-    )
+    environment = {pinned_cli.OVERRIDE: str(databricks)}
+    return subprocess.run([executable, *args], capture_output=True, text=True, env=environment)
 
 
 def fake_databricks(folder: Path, exit_code: int = 0) -> Path:
     """A Databricks CLI that logs to stdout, as the real one does for bundle runs."""
     folder.mkdir()
     script = folder / "databricks"
-    script.write_text(f"#!/bin/sh\necho 'Uploading bundle files'\nexit {exit_code}\n")
+    script.write_text(
+        "#!/bin/sh\n"
+        f"[ \"$1\" = --version ] && echo 'Databricks CLI v{pinned_cli.MINIMUM}' && exit 0\n"
+        f"echo 'Uploading bundle files'\nexit {exit_code}\n"
+    )
     script.chmod(0o755)
-    return folder
+    return script
 
 
 def test_stdout_is_pure_json_while_the_databricks_cli_logs(project: Path, tmp_path_factory):
-    path = fake_databricks(tmp_path_factory.mktemp("cli") / "bin")
+    databricks = fake_databricks(tmp_path_factory.mktemp("cli") / "bin")
 
-    result = run_mason("deploy", "--env", "dev", "--json", "--project", str(project), path=path)
+    result = run_mason(
+        "deploy", "--env", "dev", "--json", "--project", str(project), databricks=databricks
+    )
 
     assert result.returncode == 0, result.stderr
     envelope = json.loads(result.stdout)
@@ -136,9 +144,11 @@ def test_stdout_is_pure_json_while_the_databricks_cli_logs(project: Path, tmp_pa
 
 
 def test_a_failing_databricks_command_is_an_environment_error(project: Path, tmp_path_factory):
-    path = fake_databricks(tmp_path_factory.mktemp("cli") / "bin", exit_code=3)
+    databricks = fake_databricks(tmp_path_factory.mktemp("cli") / "bin", exit_code=3)
 
-    result = run_mason("deploy", "--env", "dev", "--json", "--project", str(project), path=path)
+    result = run_mason(
+        "deploy", "--env", "dev", "--json", "--project", str(project), databricks=databricks
+    )
 
     assert result.returncode == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
@@ -146,14 +156,16 @@ def test_a_failing_databricks_command_is_an_environment_error(project: Path, tmp
 
 
 def test_a_missing_databricks_cli_is_an_environment_error(project: Path, tmp_path_factory):
-    path = tmp_path_factory.mktemp("empty")
+    missing = tmp_path_factory.mktemp("empty") / "databricks"
 
-    result = run_mason("deploy", "--env", "dev", "--json", "--project", str(project), path=path)
+    result = run_mason(
+        "deploy", "--env", "dev", "--json", "--project", str(project), databricks=missing
+    )
 
     assert result.returncode == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
     assert diagnostic["rule"] == "MSN903"
-    assert "Install" in diagnostic["fix"]
+    assert pinned_cli.OVERRIDE in diagnostic["fix"]
 
 
 @pytest.mark.parametrize(
@@ -272,6 +284,10 @@ REGISTERED_RULES = {
     "MSN907": "expectation-failed",
     "MSN908": "pipeline-failed",
     "MSN909": "project-already-exists",
+    "MSN910": "databricks-cli-checksum-mismatch",
+    "MSN911": "databricks-cli-unsupported",
+    "MSN912": "databricks-cli-download-failed",
+    "MSN913": "no-databricks-cli-for-platform",
 }
 
 
@@ -419,12 +435,15 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 
 def test_a_new_rule_must_be_tested_here():
-    """The tests above, and the refresh failure and init folder tests, cover these by name. A new
-    rule joins one."""
+    """The tests above, and the refresh failure, init folder and pinned CLI tests, cover these by
+    name. A new rule joins one."""
     usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905", "MSN909"}
     refresh_failures = {"MSN906", "MSN907", "MSN908"}
+    pinned_cli_failures = {"MSN910", "MSN911", "MSN912", "MSN913"}
 
-    assert set(RULES) == set(INVALID_PROJECTS) | usage_and_environment | refresh_failures
+    assert set(RULES) == (
+        set(INVALID_PROJECTS) | usage_and_environment | refresh_failures | pinned_cli_failures
+    )
 
 
 def test_the_docs_state_every_exit_code_and_every_rule():

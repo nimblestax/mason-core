@@ -15,7 +15,7 @@ from typer.core import TyperArgument, TyperCommand, TyperOption
 from typer.main import get_command
 
 from mason import output
-from mason.cli import app
+from mason.cli import PASSED_THROUGH, app
 from mason.diagnostics import EXIT_CODES, Diagnostic, error
 from mason.kinds import KINDS, latest_schema
 from mason.registry import RULES, Example, Rule
@@ -45,7 +45,10 @@ def write(docs: Path) -> None:
     group: Any = get_command(app)
     callbacks = {info.name: info.callback for info in app.registered_commands}
     for name, registered in group.commands.items():
-        page = _command_page(name, registered, _results(callbacks[name]))
+        if name in PASSED_THROUGH:
+            page = _passed_through_page(name, registered)
+        else:
+            page = _command_page(name, registered, _results(callbacks[name]))
         (commands / f"{name}.md").write_text(page)
     (docs / "reference/json-output.md").write_text(_json_page(group.commands))
 
@@ -126,9 +129,11 @@ def _without_null(field: dict[str, Any]) -> dict[str, Any]:
 
 def _json_page(commands: dict[str, TyperCommand]) -> str:
     example = output.envelope("validate", False, {}, [EXAMPLE])
+    passed_through = ", ".join(f"[`mason {name}`](commands/{name}.md)" for name in PASSED_THROUGH)
     sections = [
-        "Every `mason` command accepts `--json`. It prints one envelope on stdout and nothing"
-        " else there. Logs, including the Databricks CLI's output, go to stderr.\n",
+        f"Every `mason` command but {passed_through}, which hands its arguments to the"
+        " Databricks CLI, accepts `--json`. It prints one envelope on stdout and nothing else"
+        " there. Logs, including the Databricks CLI's output, go to stderr.\n",
         f"```json\n{example}\n```\n",
         "## Envelope\n",
         *_shape(output.Envelope.model_json_schema(by_alias=True)),
@@ -138,6 +143,7 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         "\n".join(
             f"- [`mason {name}`](commands/{name}.md): {registered.help}"
             for name, registered in commands.items()
+            if name not in PASSED_THROUGH
         )
         + "\n",
         "## Exit codes\n\nEvery command exits with one of these.\n",
@@ -192,6 +198,19 @@ def _command_page(name: str, registered: TyperCommand, results: list[type[BaseMo
     )
     for result in results:
         sections += _shape(result.model_json_schema(by_alias=True))
+    return _front_matter(f"mason {name}", registered.help or "") + "\n" + "\n".join(sections)
+
+
+def _passed_through_page(name: str, registered: TyperCommand) -> str:
+    sections = [
+        f"```console\n$ mason {name} <arguments>\n```\n",
+        "It runs the Databricks CLI Mason runs, the version `mason --version` names, with every"
+        " argument passed through as you wrote it. It prints what the Databricks CLI prints and"
+        " exits with its exit code, so it has no `--json`. `mason databricks --help` prints the"
+        " Databricks CLI's help.\n",
+        "If Mason can't find or download its Databricks CLI, it reports a diagnostic and exits"
+        " 2.\n",
+    ]
     return _front_matter(f"mason {name}", registered.help or "") + "\n" + "\n".join(sections)
 
 

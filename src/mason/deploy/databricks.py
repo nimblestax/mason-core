@@ -5,9 +5,11 @@ import subprocess
 import sys
 from collections import deque
 from datetime import UTC, datetime, timedelta
+from functools import cached_property
 from pathlib import Path
 from typing import Any, Protocol
 
+from mason.deploy import pinned_cli
 from mason.diagnostics import USAGE_OR_ENVIRONMENT, Failure, error
 
 # How many of the CLI's last lines a failure keeps, since the CLI's own output goes to stderr.
@@ -34,6 +36,12 @@ class Workspace(Protocol):
 
 
 class DatabricksCli:
+    """Runs Mason's pinned Databricks CLI, found or downloaded at the first call."""
+
+    @cached_property
+    def _executable(self) -> str:
+        return str(pinned_cli.databricks())
+
     def deploy_bundle(self, package: Path, target: str) -> None:
         self._stream(package, "bundle", "deploy", "--target", target)
 
@@ -57,7 +65,7 @@ class DatabricksCli:
         return errors
 
     def _stream(self, package: Path, *arguments: str) -> None:
-        command = ["databricks", *arguments]
+        command = [self._executable, *arguments]
         last_lines: deque[str] = deque(maxlen=KEPT_LINES)
         # Its output goes to stderr, so stdout only ever holds what Mason prints.
         with _start(command, package, stdout=subprocess.PIPE, stderr=subprocess.STDOUT) as cli:
@@ -66,18 +74,22 @@ class DatabricksCli:
                 last_lines.append(line.rstrip())
         if cli.returncode:
             shown = "\n".join(last_lines)
-            raise WorkspaceError(f"{' '.join(command)} failed. Its last lines:\n{shown}")
+            raise WorkspaceError(
+                f"databricks {' '.join(arguments)} failed. Its last lines:\n{shown}"
+            )
 
     def _json(self, package: Path, *arguments: str) -> Any:
-        command = ["databricks", *arguments]
+        command = [self._executable, *arguments]
         with _start(command, package, stdout=subprocess.PIPE, stderr=sys.stderr) as cli:
             printed = cli.stdout.read() if cli.stdout else ""
         if cli.returncode:
-            raise WorkspaceError(f"{' '.join(command)} failed.")
+            raise WorkspaceError(f"databricks {' '.join(arguments)} failed.")
         try:
             return json.loads(printed)
         except json.JSONDecodeError as failure:
-            raise WorkspaceError(f"{' '.join(command)} didn't print JSON.") from failure
+            raise WorkspaceError(
+                f"databricks {' '.join(arguments)} didn't print JSON."
+            ) from failure
 
 
 def _start(command: list[str], package: Path, **streams: Any) -> subprocess.Popen[str]:
@@ -85,9 +97,10 @@ def _start(command: list[str], package: Path, **streams: Any) -> subprocess.Pope
         return subprocess.Popen(command, cwd=package, text=True, **streams)
     except FileNotFoundError as failure:
         raise WorkspaceError(
-            "The Databricks CLI isn't installed.",
+            f"Mason can't run the Databricks CLI at {command[0]}: {failure.strerror}.",
             "MSN903",
-            "Install the Databricks CLI and put `databricks` on your PATH.",
+            f"Point {pinned_cli.OVERRIDE} at a Databricks CLI, or unset it so Mason downloads"
+            " its own.",
         ) from failure
 
 
