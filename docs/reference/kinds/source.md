@@ -2,7 +2,7 @@
 title: Source
 description: An external dataset landed in bronze and conformed into silver.
 generated: true
-mason_version: 0.2.0
+mason_version: 0.3.0
 ---
 
 A file with `kind: source`, at version 1. `mason schema source` prints the same fields from the Mason you installed.
