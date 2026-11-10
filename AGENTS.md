@@ -7,6 +7,42 @@ Read before any work in this repo. These rules are non-negotiable.
 - Build every issue test-first with `/tdd` (red → green → refactor) unless it has no testable behaviour (pure docs, config-only changes). Say so in the PR when skipping.
 - Work in tracer-bullet vertical slices: each issue lands an end-to-end path, not a layer.
 
+## Writing docs
+
+Every PR that changes what a user sees or does updates its docs pages in the same PR, and adds its line to `## Unreleased` in `docs/changelog.md`. A change that needs an edit to a user's project says what to change.
+
+### One job per page
+
+- **Get started** takes you down one path to a working result.
+- **A guide** does one task, and its title is that task: "Add a source".
+- **A concept page** explains how Mason thinks about one idea, and why.
+- **Reference** is generated. Don't write it by hand.
+
+A page never mixes these. If a guide starts explaining an idea, link to the concept page.
+
+### Voice
+
+- Write to "you", in the present tense, in short sentences.
+- Say what happens. Not "Mason allows you to quarantine rows" but "rows that fail go to quarantine".
+- No marketing words: no "powerful", "seamless", "simply", "easily".
+- Mason's terms are lowercase in prose: a source, a gold model, quarantine, the platform contract. Identifiers stay in code: `keys`, `mason.platform.yaml`, `MSN209`.
+
+### Show, then tell
+
+- Each guide step is a command or a file, followed by the real output it produces.
+- Write commands bare, `mason validate`, for a reader whose project's `.venv` is active.
+- Examples come from Kettle, the fictional tea shop in `src/mason/examples/kettle/`. A code block titled with a file path, ```` ```yaml title="domains/sales/sources/orders.yaml" ````, must match that file in Kettle. Reference pages use placeholders such as `<source>`.
+
+### Link, don't repeat
+
+- Each idea is explained on one page. Every other page links to it.
+- A guide ends with "Next steps".
+
+### Notes
+
+- Use notes rarely. `> **Note**` is for what would surprise a careful reader. `> **Warning**` is only for where data could be lost.
+- Use plain Markdown, so pages read the same on GitHub.
+
 ## Design
 
 - Follow SOLID: small modules with one reason to change, depend on interfaces rather than concrete implementations where a seam is genuinely needed, and extend by adding code rather than editing stable code.

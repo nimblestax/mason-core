@@ -24,14 +24,20 @@ def git(*args: str) -> str:
     return done.stdout.strip()
 
 
+def section(title: str) -> str | None:
+    """The changelog section headed `title`, without its heading, or None if there isn't one."""
+    text = Path(CHANGELOG).read_text()
+    heading = rf"^## {re.escape(title)}(?:[ \t].*)?$"
+    found = re.search(rf"{heading}(.*?)(?=^## |\Z)", text, re.M | re.S)
+    return None if found is None else found.group(1).strip()
+
+
 def notes(version: str) -> str:
     """The changelog section for `version`, without its heading."""
-    text = Path(CHANGELOG).read_text()
-    heading = rf"^## {re.escape(version)}(?:[ \t].*)?$"
-    found = re.search(rf"{heading}(.*?)(?=^## |\Z)", text, re.M | re.S)
+    found = section(version)
     if found is None:
         raise Refused(f"{CHANGELOG} has no section for {version}.")
-    return found.group(1).strip()
+    return found
 
 
 def tag(version: str) -> None:
@@ -47,6 +53,13 @@ def tag(version: str) -> None:
     if carried != version:
         raise Refused(f"pyproject.toml says {carried}, not {version}.")
     notes(version)
+    # Each pull request adds its line under Unreleased, and the release renames that section to
+    # the version. Lines still there would ship without appearing in the release notes.
+    if section("Unreleased"):
+        raise Refused(
+            f"{CHANGELOG} has lines under ## Unreleased that {version} would leave out."
+            f" Rename the section to ## {version}, or move the lines under it."
+        )
     git("tag", "-a", f"v{version}", "-m", f"Mason {version}")
     git("push", "-q", "origin", f"v{version}")
     print(f"Pushed v{version}. The release workflow takes it from here.")
