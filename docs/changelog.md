@@ -26,6 +26,9 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
   - A gold model's layer is always the first folder under `models/`. A file directly in `models/`, or in a folder that isn't a model layer, fails with [`MSN127`](reference/rules/msn127.md) `model-outside-a-layer`. Before, a file directly in `models/` went into the last model layer, and a folder that wasn't a model layer was skipped without a word.
   - Folders under `sources/`, `seeds/` and a model layer's folder are read at any depth, and only group files. Two files with one name in one domain's layer fail with [`MSN120`](reference/rules/msn120.md), naming both.
   - A domain can be a source system, such as `salesforce`, with gold in business domains that read its exported silver.
+- Each Environment's Job waits only where one pipeline reads another's tables. A domain's gold waits for the ingest pipelines whose silver it reads, its own or another domain's exported silver, and for the shared domain's gold if it reads it. A failed pipeline skips only what reads from it, so an unrelated domain still refreshes. Before, a domain's gold always waited for its own ingest and never for another domain's.
+- Pipeline and Job names carry the Environment, such as `kettle_dev_sales_ingest` and `kettle_dev_refresh`, so dev, test and prod can share one workspace. Before, a second Environment in the same workspace failed to deploy, because Databricks refuses a second pipeline with the same name. The next deploy renames each Environment's pipelines and Job in place.
+- An Environment can refresh on a schedule, set as `schedule` in `mason.platform.yaml`. A schedule runs in prod and is paused in every other Environment unless it sets `paused: false`. See [Schedule refreshes](guides/schedule-refreshes.md).
 
 **What to change:** delete the `databricks/setup-cli` step from `.github/workflows/mason-merge.yaml`. It does no harm, but Mason no longer uses that CLI.
 

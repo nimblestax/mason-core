@@ -18,6 +18,32 @@ PLACEHOLDERS = ("{env}", "{domain}", "{layer}")
 SHARED_DOMAIN = "shared"
 
 
+# The Environment whose schedule runs unless it says otherwise. Every other Environment's is
+# paused, so lower Environments don't spend money unasked.
+UNPAUSED_ENVIRONMENT = "prod"
+
+
+class Schedule(BaseModel):
+    """When the Environment's Job runs on its own, besides on each deploy."""
+
+    model_config = STRICT
+
+    cron: str = Field(
+        min_length=1,
+        description="A Quartz cron expression, such as `0 0 6 * * ?` for 6am every day.",
+    )
+    timezone: str = Field(
+        default="UTC",
+        min_length=1,
+        description="The time zone `cron` is read in, such as `Australia/Sydney`.",
+    )
+    paused: bool | None = Field(
+        default=None,
+        description="Whether the schedule is paused. Left out, it runs in prod and is paused"
+        " everywhere else.",
+    )
+
+
 class Environment(BaseModel):
     """One Environment's settings."""
 
@@ -33,6 +59,11 @@ class Environment(BaseModel):
         description="Whether commands that read use this Environment when `--env` is left out."
         " At most one Environment sets it; with none, dev is the default. `mason deploy` always"
         " needs `--env`.",
+    )
+    schedule: Schedule | None = Field(
+        default=None,
+        description="When the Environment's Job runs on its own. Left out, it runs only on"
+        " each deploy.",
     )
 
 

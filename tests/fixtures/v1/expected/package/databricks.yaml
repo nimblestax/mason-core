@@ -76,7 +76,7 @@ targets:
 resources:
   pipelines:
     sales_ingest:
-      name: pinned_v1_sales_ingest
+      name: pinned_v1_${bundle.target}_sales_ingest
       catalog: ${var.catalog_sales_bronze}
       schema: ${var.schema_sales_bronze}
       serverless: true
@@ -102,7 +102,7 @@ resources:
         path_sales__refunds: ${var.path_sales__refunds}
         pipelines.numUpdateRetryAttempts: '1'
     sales_gold:
-      name: pinned_v1_sales_gold
+      name: pinned_v1_${bundle.target}_sales_gold
       catalog: ${var.catalog_sales_gold}
       schema: ${var.schema_sales_gold}
       serverless: true
@@ -128,7 +128,7 @@ resources:
         path_sales__refunds: ${var.path_sales__refunds}
         pipelines.numUpdateRetryAttempts: '1'
     finance_ingest:
-      name: pinned_v1_finance_ingest
+      name: pinned_v1_${bundle.target}_finance_ingest
       catalog: ${var.catalog_finance_bronze}
       schema: ${var.schema_finance_bronze}
       serverless: true
@@ -155,7 +155,7 @@ resources:
         pipelines.numUpdateRetryAttempts: '1'
   jobs:
     refresh:
-      name: pinned_v1_refresh
+      name: pinned_v1_${bundle.target}_refresh
       tasks:
       - task_key: sales_ingest
         max_retries: 0
