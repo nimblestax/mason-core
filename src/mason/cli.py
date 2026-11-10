@@ -300,11 +300,31 @@ class Deployed(BaseModel):
 
 @command()
 def deploy(
-    env: Annotated[str, typer.Option("--env", help="The Environment to deploy.")],
+    env: Annotated[
+        str | None,
+        typer.Option(
+            "--env",
+            help="The Environment to deploy. Required: a deploy never uses the default"
+            " Environment.",
+            show_default=False,
+        ),
+    ] = None,
     root: ProjectOption = Path("."),
 ) -> Outcome[Deployed]:
     """Deploy to an Environment and refresh its tables."""
+    if env is None:
+        raise Failure([_DEPLOY_WITHOUT_ENV], USAGE_OR_ENVIRONMENT)
     loaded = project.load(root)
     _require_environment(loaded, env)
     delivery.deploy(loaded, env, DatabricksCli())
     return Outcome(f"Deployed to {env}", Deployed(env=env))
+
+
+# `--env` is optional on the command line only so this fix, not a usage message, reaches the user.
+_DEPLOY_WITHOUT_ENV = error(
+    "MSN901",
+    "",
+    "`mason deploy` needs `--env`, so every deploy says where it goes. It never uses the"
+    " default Environment.",
+    "Add the Environment to deploy, such as `mason deploy --env dev`.",
+)

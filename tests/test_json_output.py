@@ -14,6 +14,7 @@ from typer.testing import CliRunner
 
 from mason.cli import app
 from mason.diagnostics import DOCS, RULES, error
+from mason.scaffold import PLACEHOLDER_HOST
 
 runner = CliRunner()
 
@@ -158,7 +159,7 @@ def test_a_missing_databricks_cli_is_an_environment_error(project: Path, tmp_pat
 @pytest.mark.parametrize(
     ("arguments", "schema"),
     [
-        (["deploy", "--json"], "mason.deploy/1"),
+        (["schema", "--json"], "mason.schema/1"),
         (["validate", "--json", "--nope"], "mason.validate/1"),
         (["init", "--ci", "gitlab", "--json"], "mason.init/1"),
         (["nope", "--json"], "mason.usage/1"),
@@ -178,11 +179,11 @@ def test_a_usage_error_is_an_envelope_that_exits_2(arguments: list[str], schema:
 
 
 def test_a_usage_error_without_json_stays_text_for_a_person():
-    result = runner.invoke(app, ["deploy"])
+    result = runner.invoke(app, ["schema"])
 
     assert result.exit_code == 2
     assert result.stdout == ""
-    assert "Missing option" in result.stderr
+    assert "Missing argument" in result.stderr
 
 
 @pytest.mark.parametrize("command", ["compile", "deploy"])
@@ -249,6 +250,8 @@ REGISTERED_RULES = {
     "MSN119": "invalid-sequence-by",
     "MSN120": "duplicate-config-file",
     "MSN121": "unlisted-domain-folder",
+    "MSN122": "dev-host-missing",
+    "MSN123": "two-default-environments",
     "MSN201": "unresolved-logical-name",
     "MSN202": "duplicate-table",
     "MSN203": "unparseable-sql",
@@ -296,6 +299,7 @@ def replacing(file: str, old: str, new: str) -> Callable[[Path], None]:
 
 
 SOURCE = "domains/sales/sources/orders.yaml"
+PLATFORM = "mason.platform.yaml"
 MODEL = "domains/sales/models/gold/fct_orders"
 
 
@@ -357,6 +361,12 @@ INVALID_PROJECTS = {
         (project / SOURCE).read_text()
     ),
     "MSN121": lambda project: (project / "domains/hr").mkdir(),
+    "MSN122": replacing(PLATFORM, f"  dev:\n    host: {PLACEHOLDER_HOST}\n", "  dev: {}\n"),
+    "MSN123": replacing(
+        PLATFORM,
+        f"    host: {PLACEHOLDER_HOST}\n",
+        f"    host: {PLACEHOLDER_HOST}\n    default: true\n  prod:\n    default: true\n",
+    ),
     "MSN201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "MSN202": seed("code: STRING", "code\nAU\n", name="orders"),
     "MSN203": lambda project: (project / f"{MODEL}.sql").write_text("SELECT FROM WHERE"),

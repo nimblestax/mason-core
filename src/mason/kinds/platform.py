@@ -22,7 +22,17 @@ class Environment(BaseModel):
 
     model_config = STRICT
 
-    host: str = Field(description="Workspace URL.")
+    host: str | None = Field(
+        default=None,
+        description="Workspace URL. Required on dev; test and prod use dev's unless they set"
+        " their own.",
+    )
+    default: bool = Field(
+        default=False,
+        description="Whether commands that read use this Environment when `--env` is left out."
+        " At most one Environment sets it; with none, dev is the default. `mason deploy` always"
+        " needs `--env`.",
+    )
 
 
 class Layers(BaseModel):
@@ -89,6 +99,31 @@ class PlatformV1(BaseModel):
         description="The Domains, one folder each under `domains/`.",
     )
 
+    @field_validator("environments")
+    @classmethod
+    def _dev_has_a_host(cls, environments: dict[str, Environment]) -> dict[str, Environment]:
+        dev = environments.get("dev")
+        if dev is None or dev.host is None:
+            # A rule ID as the error type reaches the user as that rule, with this fix.
+            raise PydanticCustomError(
+                "MSN122",
+                "dev has no `host`, and test and prod use dev's unless they set their own.",
+                {"fix": "Add `host` under `environments.dev`, set to dev's workspace URL."},
+            )
+        defaults = [env for env, settings in environments.items() if settings.default]
+        if len(defaults) > 1:
+            raise PydanticCustomError(
+                "MSN123",
+                "{defaults} each set `default: true`, and only one Environment can be the"
+                " default.",
+                {
+                    "defaults": " and ".join(defaults),
+                    "fix": "Keep `default: true` on one Environment and remove it from the"
+                    " others.",
+                },
+            )
+        return environments
+
     @field_validator("domains")
     @classmethod
     def _domains_are_unique(cls, domains: list[str]) -> list[str]:
@@ -96,7 +131,15 @@ class PlatformV1(BaseModel):
 
     @property
     def hosts(self) -> dict[str, str]:
-        return {env: settings.host for env, settings in self.environments.items()}
+        """Each Environment's workspace URL. One with no `host` uses dev's."""
+        dev = self.environments["dev"].host or ""  # Never empty: `_dev_has_a_host` checks it.
+        return {env: settings.host or dev for env, settings in self.environments.items()}
+
+    @property
+    def default_environment(self) -> str:
+        """What commands that read use when `--env` is left out."""
+        marked = [env for env, settings in self.environments.items() if settings.default]
+        return marked[0] if marked else "dev"
 
     @property
     def source_layers(self) -> tuple[str, str]:

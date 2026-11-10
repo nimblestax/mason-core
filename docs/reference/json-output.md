@@ -104,6 +104,8 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN119`](rules/msn119.md) | `invalid-sequence-by` | A Source's `silver.sequence_by` isn't one SQL expression on one row, such as `updated_at` or `struct(updated_at, seq)`: it doesn't parse, or it holds a query, an aggregate, a window function, a comment or an alias. |
 | [`MSN120`](rules/msn120.md) | `duplicate-config-file` | Two config files share a name in one folder, such as `orders.yaml` and `orders.yml`. Mason reads either ending, and writes `.yaml`. |
 | [`MSN121`](rules/msn121.md) | `unlisted-domain-folder` | A folder under `domains/` isn't listed in `domains` in `mason.platform.yaml`, in the same case, so nothing in it is validated or deployed. |
+| [`MSN122`](rules/msn122.md) | `dev-host-missing` | `mason.platform.yaml` has no `host` on the dev Environment. |
+| [`MSN123`](rules/msn123.md) | `two-default-environments` | More than one Environment in `mason.platform.yaml` sets `default: true`. |
 | [`MSN201`](rules/msn201.md) | `unresolved-logical-name` | SQL reads a table that isn't in the project. |
 | [`MSN202`](rules/msn202.md) | `duplicate-table` | A Seed and a Source in one Domain share a name, so they would be one table. |
 | [`MSN203`](rules/msn203.md) | `unparseable-sql` | A Gold Model's SQL doesn't parse as one Databricks SQL query. |

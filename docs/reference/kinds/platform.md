@@ -15,7 +15,8 @@ A file with `kind: platform`, at version 1. `mason schema platform` prints the s
 | `version` | `1` | yes |  | The schema version of this Kind. |
 | `name` | string | yes |  | The project's name. |
 | `environments` | map of name to object | yes |  | Settings per Environment. |
-| `environments.<name>.host` | string | yes |  | Workspace URL. |
+| `environments.<name>.host` | string | no | `null` | Workspace URL. Required on dev; test and prod use dev's unless they set their own. |
+| `environments.<name>.default` | boolean | no | `false` | Whether commands that read use this Environment when `--env` is left out. At most one Environment sets it; with none, dev is the default. `mason deploy` always needs `--env`. |
 | `naming` | object | yes |  | The catalog and schema patterns, and the Layers. |
 | `naming.catalog` | string | yes |  | The catalog pattern, built from `{env}`, `{domain}` and `{layer}`. |
 | `naming.schema` | string | yes |  | The schema pattern, built from `{env}`, `{domain}` and `{layer}`. |
