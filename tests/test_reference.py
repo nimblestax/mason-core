@@ -85,6 +85,9 @@ def schema_fields(schema: dict, defs: dict) -> list[tuple[str, str, str]]:
         required = "yes" if name in schema.get("required", []) else "no"
         fields.append((name, required, field["description"]))
         inner = field.get("$ref") or field.get("items", {}).get("$ref")
+        # An optional object is `anyOf` its own schema and null.
+        for choice in field.get("anyOf", []):
+            inner = inner or choice.get("$ref")
         if isinstance(field.get("additionalProperties"), dict):
             inner = field["additionalProperties"].get("$ref")
         if inner:
