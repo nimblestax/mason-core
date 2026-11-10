@@ -20,10 +20,20 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 - `mason.platform.yaml` keeps the naming style by name, as `naming.style`, in version 2 of the `platform` Kind. Hand-edited `catalog` and `schema` patterns are no longer accepted. `mason init` writes version 2, with a comment that lists the three styles. See [Naming](concepts/naming.md).
   - A version 1 file still works when its patterns match a style, and Mason reads it as that style. Patterns that match none fail with [`MSN124`](reference/rules/msn124.md) `naming-patterns-not-supported`, which names the closest style.
   - The source layers are always `bronze` and `silver`. A version 1 file that names others fails with [`MSN125`](reference/rules/msn125.md) `source-layers-fixed`.
+- Model layers have no order, and a gold model's folder is the only thing that sets its layer. See [Domains and layers](concepts/domains-and-layers.md).
+  - A gold model can read any model layer in its own domain, in either direction. A loop of reads across model layers fails with [`MSN208`](reference/rules/msn208.md).
+  - A model layer called `bronze` or `silver` fails with [`MSN126`](reference/rules/msn126.md) `model-layer-named-like-a-source-layer`.
+  - A gold model's layer is always the first folder under `models/`. A file directly in `models/`, or in a folder that isn't a model layer, fails with [`MSN127`](reference/rules/msn127.md) `model-outside-a-layer`. Before, a file directly in `models/` went into the last model layer, and a folder that wasn't a model layer was skipped without a word.
+  - Folders under `sources/`, `seeds/` and a model layer's folder are read at any depth, and only group files. Two files with one name in one domain's layer fail with [`MSN120`](reference/rules/msn120.md), naming both.
+  - A domain can be a source system, such as `salesforce`, with gold in business domains that read its exported silver.
 
 **What to change:** delete the `databricks/setup-cli` step from `.github/workflows/mason-merge.yaml`. It does no harm, but Mason no longer uses that CLI.
 
 A version 1 `mason.platform.yaml` whose patterns match a style needs no change yet. To move it to version 2, set `version: 2`, replace `catalog` and `schema` under `naming` with `style`, and delete `naming.layers.sources`. Use the style your patterns match, so no table moves: `{env}_{domain}` / `{layer}` is `domain-catalogs`, `{env}_{layer}` / `{domain}` is `layer-catalogs`, and `{env}` / `{domain}_{layer}` is `environment-catalogs`. Then point the schema comment on the first line at `.mason/schemas/platform.v2.json`, and copy that file from a project `mason init` creates, so your editor checks the new fields. If you see `MSN124`, your patterns match no style: see [When none of these fit](concepts/naming.md#when-none-of-these-fit) before you pick one, because a new style moves every table.
+
+A project that passed `mason validate` before can also fail it on this:
+
+- MSN127: move each gold model that sits directly in `domains/<domain>/models/` into `domains/<domain>/models/gold/`, or into the folder of the model layer it belongs to. A model moved into the last model layer, where it used to land, keeps its table.
 
 ## 0.3.0
 

@@ -345,10 +345,14 @@ RULES = {
     ),
     "MSN120": Rule(
         "duplicate-config-file",
-        checks="Two config files share a name in one folder, such as `orders.yaml` and"
-        " `orders.yml`. Mason reads either ending, and writes `.yaml`.",
+        checks="Two config files share a name in one Domain's Layer: in one folder, such as"
+        " `orders.yaml` and `orders.yml`, or in two folders, such as `sources/erp/orders.yaml`"
+        " and `sources/crm/orders.yaml`. Mason reads either ending, and writes `.yaml`.",
         why="A config file's name is its table's name, so two files with one name would declare"
-        " one table twice, and Mason can't tell which one is meant.",
+        " one table twice, and Mason can't tell which one is meant. Folders inside `sources/`,"
+        " `seeds/` or a model Layer's folder only group files, so they don't make two tables."
+        " The same name in two model Layers is two tables, such as `sales.gold.orders` and"
+        " `sales.marts.orders`.",
         example=Example({"domains/sales/sources/orders.yml": LANDED_AS_JSON}),
         fix="Keep one of the files, and delete or rename the other.",
     ),
@@ -448,6 +452,43 @@ RULES = {
         ),
         fix="Remove `naming.layers.sources`, and set `version: 2` with `naming.style`. To add a"
         " Layer, add it to `naming.layers.models`.",
+    ),
+    "MSN126": Rule(
+        "model-layer-named-like-a-source-layer",
+        checks="A model Layer in `naming.layers.models` is called `bronze` or `silver`, in any"
+        " case.",
+        why="Every Source fills bronze and silver, and only Gold Models fill model Layers. A model"
+        " Layer with a source Layer's name would put Gold Models in the same schema as Sources,"
+        " and a Logical Name such as `sales.silver.orders` could name either.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace(
+                    "models: [gold]", "models: [gold, silver]"
+                )
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Rename the model Layer, such as to `gold` or `marts`, and rename its folder under"
+        " `models/` to match.",
+    ),
+    "MSN127": Rule(
+        "model-outside-a-layer",
+        checks="A file sits directly in a Domain's `models/` folder, or in a first folder under"
+        " it that isn't a model Layer in `naming.layers.models`.",
+        why="A Gold Model's Layer is the first folder under `models/`, so"
+        " `domains/sales/models/gold/fct_orders.yaml` is `sales.gold.fct_orders` and the path"
+        " reads as the Logical Name. A file with no such folder has no Layer, and a misspelt"
+        " folder would put a table in a schema nobody expects, so Mason doesn't guess.",
+        example=Example(
+            {
+                "domains/sales/models/fct_returns.yaml": "kind: model\nversion: 1\n"
+                "sql: fct_returns.sql\n",
+                "domains/sales/models/fct_returns.sql": "SELECT order_id\n"
+                "FROM sales.silver.orders\n",
+            }
+        ),
+        fix="Move the file into a folder named after a model Layer, which the diagnostic lists."
+        " To add a Layer, add it to `naming.layers.models` in `mason.platform.yaml`.",
     ),
     "MSN201": Rule(
         "unresolved-logical-name",

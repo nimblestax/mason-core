@@ -154,7 +154,7 @@ def _other_domains_gold(file: str, written: sql.Found, read: LogicalName) -> Dia
 
 
 def _gold(project: Project, model: Model) -> LogicalName:
-    return LogicalName(model.domain, model.layer(project.platform.model_layers), model.name)
+    return LogicalName(model.domain, model.layer, model.name)
 
 
 def _cycles(project: Project, reads: dict[LogicalName, set[LogicalName]]) -> list[Diagnostic]:

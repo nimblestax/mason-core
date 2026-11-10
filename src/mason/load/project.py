@@ -31,10 +31,18 @@ def load(root: Path) -> Project:
     for domain in contract.domains:
         for kind in IN_DOMAINS:
             kind_folder = root / "domains" / domain / kind.FOLDER
-            for folder in _folders(kind_folder, kind.KIND, contract):
+            in_domain: list[Any] = []
+            for folder in _tree(kind_folder):
+                if kind is model and not _in_a_model_layer(kind_folder, folder, contract):
+                    problems += [
+                        _outside_a_layer(root, file, contract) for file in _model_files(folder)
+                    ]
+                    continue
                 documents, found_problems = _read_folder(root, kind_folder, folder, kind)
                 problems += found_problems
-                found[kind.KIND] += documents
+                in_domain += documents
+            problems += _one_table_each(root, in_domain)
+            found[kind.KIND] += in_domain
     if problems:
         raise config.InvalidConfig(problems)
     return Project(
@@ -46,11 +54,44 @@ def load(root: Path) -> Project:
     )
 
 
-def _folders(kind_folder: Path, kind: str, contract: Platform) -> list[Path]:
-    """Where a Kind's files are read: Gold Models also sit in a folder per model Layer."""
-    if kind != model.KIND:
-        return [kind_folder]
-    return [kind_folder, *(kind_folder / layer for layer in contract.model_layers)]
+def _tree(kind_folder: Path) -> list[Path]:
+    """A Kind's folder and every folder under it, at any depth. Only a Gold Model's first folder
+    carries meaning, so the rest only group files."""
+    if not kind_folder.is_dir():
+        return []
+    below = (path for path in kind_folder.rglob("*") if path.is_dir())
+    visible = [path for path in below if not _hidden(path.relative_to(kind_folder))]
+    return [kind_folder, *sorted(visible)]
+
+
+def _hidden(relative: Path) -> bool:
+    return any(part.startswith(".") for part in relative.parts)
+
+
+def _in_a_model_layer(kind_folder: Path, folder: Path, contract: Platform) -> bool:
+    """A Gold Model's Layer is the first folder under `models/`, so it must be a model Layer."""
+    parts = folder.relative_to(kind_folder).parts
+    return bool(parts) and parts[0] in contract.model_layers
+
+
+def _model_files(folder: Path) -> list[Path]:
+    """Each Gold Model's config file, and each SQL file with none beside it."""
+    configs = config_files(folder)
+    stems = {file.stem for file in configs}
+    lone_sql = [file for file in sorted(folder.glob("*.sql")) if file.stem not in stems]
+    return [*configs, *lone_sql]
+
+
+def _outside_a_layer(root: Path, file: Path, contract: Platform) -> Diagnostic:
+    layers = ", ".join(contract.model_layers)
+    return error(
+        "MSN127",
+        file.relative_to(root).as_posix(),
+        "This file isn't in a model Layer's folder, and a Gold Model's Layer is the first folder"
+        " under `models/`.",
+        f"Move it into a folder named after a model Layer: {layers}. To add a Layer, add it to"
+        f" `naming.layers.models` in {platform.FILE_NAME}.",
+    )
 
 
 def _read_folder(
@@ -94,6 +135,27 @@ def _one_per_name(root: Path, files: list[Path]) -> tuple[list[Path], list[Diagn
     single = [found[0] for found in by_name.values() if len(found) == 1]
     both = [_duplicate(root, found) for found in by_name.values() if len(found) > 1]
     return single, both
+
+
+def _one_table_each(root: Path, documents: list[InDomain]) -> list[Diagnostic]:
+    """Folders below a Layer carry no meaning, so one name in one Domain's Layer is one table."""
+    by_table: dict[tuple[str, str], list[Path]] = {}
+    for document in documents:
+        layer = document.layer if isinstance(document, Model) else ""
+        # Databricks ignores case in table names, so `Orders` and `orders` are one table.
+        by_table.setdefault((layer, document.name.lower()), []).append(document.config_file)
+    return [_same_table(root, files) for files in by_table.values() if len(files) > 1]
+
+
+def _same_table(root: Path, files: list[Path]) -> Diagnostic:
+    first, *rest = (file.relative_to(root).as_posix() for file in files)
+    return error(
+        "MSN120",
+        rest[-1],
+        f"{first} and {', '.join(rest)} both configure {files[0].stem} in one Domain's Layer,"
+        " and folders inside a Layer only group files, so Mason can't tell which one is meant.",
+        "Rename one of them, so each table has its own name, or delete one.",
+    )
 
 
 def _duplicate(root: Path, files: list[Path]) -> Diagnostic:

@@ -55,9 +55,9 @@ def test_a_yml_model_is_read_and_its_sql_has_a_config_file(project: Path):
     assert "MATERIALIZED VIEW dev_sales.gold.fct_orders" in compiled(project)
 
 
-@pytest.mark.parametrize("folder", ["sources", "seeds", "models"])
+@pytest.mark.parametrize("folder", ["sources", "seeds", "models/gold"])
 def test_a_name_with_both_a_yaml_and_a_yml_file_fails_once(project: Path, folder: str):
-    (project / "domains/sales" / folder).mkdir(exist_ok=True)
+    (project / "domains/sales" / folder).mkdir(parents=True, exist_ok=True)
     for suffix in (".yaml", ".yml"):
         (project / "domains/sales" / folder / f"extra{suffix}").write_text("kind: source\n")
 

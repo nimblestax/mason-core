@@ -385,11 +385,11 @@ def finance(project: Path, request) -> tuple[Path, str, str]:
     (folder / "sources/invoices.yaml").write_text(
         "kind: source\nversion: 1\npath: /Volumes/{env}/landing/invoices\nformat: json\n"
     )
-    (folder / "models").mkdir()
-    (folder / "models/fct_invoices.yaml").write_text(
+    (folder / "models/gold").mkdir(parents=True)
+    (folder / "models/gold/fct_invoices.yaml").write_text(
         "kind: model\nversion: 1\nsql: fct_invoices.sql\n"
     )
-    (folder / "models/fct_invoices.sql").write_text("SELECT * FROM finance.silver.invoices")
+    (folder / "models/gold/fct_invoices.sql").write_text("SELECT * FROM finance.silver.invoices")
     return project, silver, gold
 
 

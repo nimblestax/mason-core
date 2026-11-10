@@ -266,6 +266,8 @@ REGISTERED_RULES = {
     "MSN123": "two-default-environments",
     "MSN124": "naming-patterns-not-supported",
     "MSN125": "source-layers-fixed",
+    "MSN126": "model-layer-named-like-a-source-layer",
+    "MSN127": "model-outside-a-layer",
     "MSN201": "unresolved-logical-name",
     "MSN202": "duplicate-table",
     "MSN203": "unparseable-sql",
@@ -336,7 +338,7 @@ def seed(column: str, rows: str | None, name: str = "countries") -> Callable[[Pa
 def read_a_domains_gold_from_shared(project: Path) -> None:
     """A Shared Domain Model reading a Domain's gold, which nobody outside that Domain reads."""
     replacing("mason.platform.yaml", "  - sales\n", "  - sales\n  - shared\n")(project)
-    folder = project / "domains/shared/models"
+    folder = project / "domains/shared/models/gold"
     folder.mkdir(parents=True)
     (folder / "dim_order.yaml").write_text("kind: model\nversion: 1\nsql: dim_order.sql\n")
     (folder / "dim_order.sql").write_text("SELECT * FROM sales.gold.fct_orders")
@@ -392,6 +394,8 @@ INVALID_PROJECTS = {
         'naming:\n  catalog: "{env}_{domain}"\n  schema: "{layer}"\n'
         "  layers:\n    sources: [bronze, curated]\n    models: [gold]\ndomains:\n  - sales\n"
     ),
+    "MSN126": replacing(PLATFORM, "models: [gold]", "models: [gold, silver]"),
+    "MSN127": lambda project: (project / "domains/sales/models/x.sql").write_text("SELECT 1"),
     "MSN201": lambda project: (project / f"{MODEL}.sql").write_text("SELECT * FROM a.b.c"),
     "MSN202": seed("code: STRING", "code\nAU\n", name="orders"),
     "MSN203": lambda project: (project / f"{MODEL}.sql").write_text("SELECT FROM WHERE"),
