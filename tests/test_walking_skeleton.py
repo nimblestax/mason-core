@@ -11,7 +11,7 @@ import yaml
 from typer.testing import CliRunner
 
 from mason.cli import app
-from mason.deploy import deploy
+from mason.deploy import deploy, pinned_cli
 from mason.deploy.databricks import WorkspaceError
 from mason.load.project import load
 
@@ -135,7 +135,7 @@ def test_compile_writes_a_package_databricks_accepts(tmp_path: Path, stub_worksp
         "DATABRICKS_TOKEN": "not-a-real-token",
     }
     validated = subprocess.run(
-        ["databricks", "bundle", "validate", "--target", "dev", "--output", "json"],
+        [pinned_cli.databricks(), "bundle", "validate", "--target", "dev", "--output", "json"],
         cwd=tmp_path / "build",
         env=environment,
         capture_output=True,
@@ -194,6 +194,18 @@ def test_github_ci_files_are_thin_calls_to_mason_with_no_secret(project: Path):
     assert "id-token: write" in merge
     assert "DATABRICKS_AUTH_TYPE: github-oidc" in merge
     assert "secrets." not in pull_request + merge
+
+
+def test_github_ci_files_install_no_databricks_cli_because_mason_brings_its_own(project: Path):
+    workflows = (project / ".github/workflows").glob("*.yaml")
+
+    for workflow in workflows:
+        steps = [
+            step
+            for job in yaml.safe_load(workflow.read_text())["jobs"].values()
+            for step in job["steps"]
+        ]
+        assert not [step for step in steps if "setup-cli" in step.get("uses", "")], workflow
 
 
 def test_generated_code_is_uploaded_even_though_init_gitignores_the_package(project: Path):

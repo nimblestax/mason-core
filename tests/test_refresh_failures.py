@@ -11,6 +11,7 @@ import yaml
 from typer.testing import CliRunner
 
 from mason import cli
+from mason.deploy import pinned_cli
 from mason.deploy.databricks import WorkspaceError, failed_update_errors
 
 runner = CliRunner()
@@ -134,7 +135,7 @@ def test_a_pipeline_retries_a_failed_update_once_in_every_environment(project: P
         assert "resources" not in target
 
 
-# The real boundary, driven through the installed command with a fake `databricks` on the PATH.
+# The real boundary, driven through the installed command with a fake Databricks CLI.
 
 
 def event(update: str, message: str, flow: str | None = None) -> dict:
@@ -183,6 +184,7 @@ def fake_databricks(folder: Path, events: dict[str, list[dict]]) -> Path:
         "#!/bin/sh\n"
         f'echo "$@" >> {folder}/calls\n'
         'case "$1 $2" in\n'
+        f"  \"--version \") echo 'Databricks CLI v{pinned_cli.MINIMUM}' ;;\n"
         '  "bundle run") echo \'"mason_probe_refresh" RUNNING\'; echo \'"mason_probe_refresh"'
         " TERMINATED FAILED'; echo 'Error: run failed' >&2; exit 1 ;;\n"
         f'  "bundle summary") /bin/cat {folder}/summary.json ;;\n'
@@ -190,22 +192,22 @@ def fake_databricks(folder: Path, events: dict[str, list[dict]]) -> Path:
         "esac\n"
     )
     script.chmod(0o755)
-    return bin_folder
+    return script
 
 
-def run_mason(project: Path, path: Path) -> subprocess.CompletedProcess:
+def run_mason(project: Path, databricks: Path) -> subprocess.CompletedProcess:
     executable = Path(sys.executable).with_name("mason")
     arguments = ["deploy", "--env", "dev", "--json", "--project", str(project)]
-    return subprocess.run(
-        [executable, *arguments], capture_output=True, text=True, env={"PATH": str(path)}
-    )
+    # No PATH, so nothing on it could be run in its place.
+    environment = {pinned_cli.OVERRIDE: str(databricks)}
+    return subprocess.run([executable, *arguments], capture_output=True, text=True, env=environment)
 
 
 def test_the_failed_updates_error_is_read_from_the_event_log(project: Path, tmp_path_factory):
     folder = tmp_path_factory.mktemp("cli")
-    path = fake_databricks(folder, {"p-ingest": EVENTS, "p-gold": []})
+    databricks = fake_databricks(folder, {"p-ingest": EVENTS, "p-gold": []})
 
-    result = run_mason(project, path)
+    result = run_mason(project, databricks)
 
     assert result.returncode == 2, result.stderr
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
@@ -221,9 +223,9 @@ def test_the_failed_updates_error_is_read_from_the_event_log(project: Path, tmp_
 def test_the_cli_output_is_reported_when_no_pipeline_logged_an_error(
     project: Path, tmp_path_factory
 ):
-    path = fake_databricks(tmp_path_factory.mktemp("cli"), {"p-ingest": [], "p-gold": []})
+    databricks = fake_databricks(tmp_path_factory.mktemp("cli"), {"p-ingest": [], "p-gold": []})
 
-    result = run_mason(project, path)
+    result = run_mason(project, databricks)
 
     assert result.returncode == 2, result.stderr
     [diagnostic] = json.loads(result.stdout)["diagnostics"]

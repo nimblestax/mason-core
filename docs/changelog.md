@@ -11,6 +11,15 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 
 ## Unreleased
 
+- Mason brings its own Databricks CLI, version 1.23.0, and never runs the `databricks` on your PATH. It downloads it the first time a command needs it, checks it against its checksum, and caches it. See [The Databricks CLI](concepts/the-databricks-cli.md).
+  - `mason --version` prints Mason's version and the CLI version it runs.
+  - `mason databricks <arguments>` runs that CLI, so you don't need one of your own.
+  - `MASON_DATABRICKS_CLI` points Mason at a CLI you installed yourself, for a machine that can't download one.
+  - New rules: MSN910 `databricks-cli-checksum-mismatch`, MSN911 `databricks-cli-unsupported`, MSN912 `databricks-cli-download-failed` and MSN913 `no-databricks-cli-for-platform`. MSN903 `databricks-cli-missing` now means `MASON_DATABRICKS_CLI` names a CLI Mason can't run.
+- The workflows `mason init --ci github` writes no longer install the Databricks CLI.
+
+**What to change:** delete the `databricks/setup-cli` step from `.github/workflows/mason-merge.yaml`. It does no harm, but Mason no longer uses that CLI.
+
 ## 0.3.0
 
 - In `mason.platform.yaml`, test and prod use dev's `host` unless they set their own, so a project on one workspace sets `host` once. Every project now has a dev Environment with a `host`, checked by [`MSN122`](reference/rules/msn122.md).
