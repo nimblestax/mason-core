@@ -667,7 +667,9 @@ RULES = {
         why="A stream reads only rows added since its last update. Silver with `keys` is"
         " written by upserts, which change and delete rows in place, so a stream from it fails"
         " in the pipeline's first update after a change. Read without `STREAM(...)`, the Gold"
-        " Model is a materialized view, which Databricks refreshes incrementally where it can.",
+        " Model is a materialized view, which Databricks refreshes incrementally where it can."
+        " See [How Mason reads a gold model's SQL]"
+        "(../../concepts/how-mason-reads-a-gold-models-sql.md).",
         example=Example(
             {
                 ORDERS: f"{LANDED_AS_JSON}silver:\n  keys: [order_id]\n  sequence_by: updated_at\n",
@@ -675,6 +677,25 @@ RULES = {
             }
         ),
         fix="Read the table without `STREAM(...)`, as `FROM sales.silver.orders`.",
+    ),
+    "MSN212": Rule(
+        "stream-of-materialized-view",
+        checks="A Gold Model reads a Seed, or a Gold Model that doesn't stream, with"
+        " `STREAM(...)`.",
+        why="A stream reads only rows added since its last update. A Seed, and a Gold Model"
+        " whose SQL reads no `STREAM(...)`, are materialized views, which Databricks may"
+        " recompute in full on any refresh, so it refuses a stream from one. A stream may read"
+        " silver without `keys`, a Quarantine table, or a Gold Model that streams. See"
+        " [How Mason reads a gold model's SQL]"
+        "(../../concepts/how-mason-reads-a-gold-models-sql.md).",
+        example=Example(
+            {
+                COUNTRIES: COUNTRIES_CONFIG,
+                COUNTRIES_CSV: "code\nAU\n",
+                FCT_ORDERS: "SELECT code\nFROM STREAM(sales.silver.countries)\n",
+            }
+        ),
+        fix="Read the table without `STREAM(...)`, as `FROM sales.silver.countries`.",
     ),
     "MSN301": Rule(
         "missing-catalog",

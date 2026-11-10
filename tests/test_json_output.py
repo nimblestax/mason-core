@@ -285,6 +285,7 @@ REGISTERED_RULES = {
     "MSN209": "cross-domain-read",
     "MSN210": "read-against-build-order",
     "MSN211": "stream-of-upsert-silver",
+    "MSN212": "stream-of-materialized-view",
     "MSN301": "missing-catalog",
     "MSN302": "missing-schema",
     "MSN901": "usage-error",
@@ -435,6 +436,10 @@ INVALID_PROJECTS = {
             "format: json\nsilver:\n  keys: [order_id]\n  sequence_by: updated_at\n",
         )(project),
         (project / f"{MODEL}.sql").write_text("SELECT * FROM STREAM(sales.silver.orders)"),
+    ),
+    "MSN212": lambda project: (
+        seed("code: STRING", "code\nAU\n")(project),
+        (project / f"{MODEL}.sql").write_text("SELECT * FROM STREAM(sales.silver.countries)"),
     ),
 }
 

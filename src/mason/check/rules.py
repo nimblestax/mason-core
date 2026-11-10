@@ -12,6 +12,7 @@ from mason.names import LogicalName
 
 def check(project: Project) -> list[Diagnostic]:
     known = _tables(project)
+    views = _materialized_views(project)
     diagnostics = []
     reads: dict[LogicalName, set[LogicalName]] = {}
     for model in project.models:
@@ -27,6 +28,10 @@ def check(project: Project) -> list[Diagnostic]:
         }
         diagnostics += _reads(project, known, file, query)
         diagnostics += _build_order(project, known, model, file, query)
+        diagnostics += [
+            _stream_of_materialized_view(file, query.streams[read])
+            for read in sorted(query.streams.keys() & views, key=str)
+        ]
         diagnostics += [_unqualified(file, name) for name in query.unqualified]
         diagnostics += [_computed(file, computed) for computed in query.computed]
         diagnostics += [_file_read(file, found) for found in query.file_reads]
@@ -105,6 +110,35 @@ def _published(project: Project, known: set[LogicalName], domain: str) -> set[Lo
 
 def _is_exported(table: Source | Seed) -> bool:
     return table.silver.export if isinstance(table, Source) else table.export
+
+
+def _materialized_views(project: Project) -> set[LogicalName]:
+    """Every table no stream may read: each Seed, and each Gold Model that reads no stream.
+
+    A Gold Model whose SQL can't be read is left out, because it's reported on its own.
+    """
+    silver = project.platform.source_layers[1]
+    views = {LogicalName(seed.domain, silver, seed.name) for seed in project.seeds}
+    for model in project.models:
+        try:
+            streaming = sql.streams(model.query)
+        except sql.Unparseable:
+            continue
+        if not streaming:
+            views.add(_gold(project, model))
+    return views
+
+
+def _stream_of_materialized_view(file: str, written: sql.Found) -> Diagnostic:
+    return error(
+        "MSN212",
+        file,
+        f"{written.text} is a materialized view, which Databricks can recompute in full, and"
+        " `STREAM(...)` reads only new rows. The pipeline would fail when it starts.",
+        f"Read it without `STREAM(...)`, as `FROM {written.text}`, so this Gold Model refreshes"
+        " from the whole table.",
+        written.line,
+    )
 
 
 def _stream_of_upsert(file: str, written: sql.Found) -> Diagnostic:

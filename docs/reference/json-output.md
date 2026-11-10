@@ -124,6 +124,7 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN209`](rules/msn209.md) | `cross-domain-read` | A Gold Model reads another Domain's gold, or silver that Domain hasn't Exported. |
 | [`MSN210`](rules/msn210.md) | `read-against-build-order` | A Gold Model reads bronze. |
 | [`MSN211`](rules/msn211.md) | `stream-of-upsert-silver` | A Gold Model reads silver that has `keys` with `STREAM(...)`. |
+| [`MSN212`](rules/msn212.md) | `stream-of-materialized-view` | A Gold Model reads a Seed, or a Gold Model that doesn't stream, with `STREAM(...)`. |
 | [`MSN301`](rules/msn301.md) | `missing-catalog` | With `--platform`, a catalog the project's tables need isn't in the Environment's workspace, or the identity Mason signs in as can't see it. |
 | [`MSN302`](rules/msn302.md) | `missing-schema` | With `--platform`, a schema the project's tables need isn't in its catalog in the Environment's workspace, or the identity Mason signs in as can't see it. |
 | [`MSN901`](rules/msn901.md) | `usage-error` | The command line is wrong. |

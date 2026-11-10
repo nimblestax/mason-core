@@ -34,7 +34,8 @@ def generated_files(project: Project) -> dict[Path, str]:
         target = names.placeholders(LogicalName(item.domain, layer, item.name))
         path = Path("src") / item.domain / "gold" / f"{item.name}.sql"
         query = sql.escape_placeholders(item.query)
-        files[path] = model.generate(item, target, sql.rewrite(query, names.placeholders))
+        rewritten = sql.rewrite(query, names.placeholders)
+        files[path] = model.generate(item, target, rewritten, sql.streams(item.query))
     return files
 
 
