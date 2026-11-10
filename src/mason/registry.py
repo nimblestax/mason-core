@@ -371,6 +371,41 @@ RULES = {
         fix="Add the folder to `domains` in `mason.platform.yaml`, matching its case, or remove"
         " the folder.",
     ),
+    "MSN122": Rule(
+        "dev-host-missing",
+        checks="`mason.platform.yaml` has no `host` on the dev Environment.",
+        why="dev is the Environment every project starts from, and its `host` is the workspace"
+        " Mason connects to. test and prod use dev's `host` unless they set their own, so"
+        " without it no Environment has a workspace.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace(
+                    "  dev:\n    host: https://your-workspace.cloud.databricks.com\n",
+                    "  dev: {}\n",
+                )
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Add `host` under `environments.dev`, set to dev's workspace URL.",
+    ),
+    "MSN123": Rule(
+        "two-default-environments",
+        checks="More than one Environment in `mason.platform.yaml` sets `default: true`.",
+        why="Commands that read rather than deploy use the default Environment when `--env` is"
+        " left out. With two defaults, Mason can't tell which one you mean, so it"
+        " doesn't guess.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace(
+                    "cloud.databricks.com\n",
+                    "cloud.databricks.com\n    default: true\n  prod:\n    default: true\n",
+                )
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Keep `default: true` on one Environment and remove it from the others. With none,"
+        " dev is the default.",
+    ),
     "MSN201": Rule(
         "unresolved-logical-name",
         checks="SQL reads a table that isn't in the project.",

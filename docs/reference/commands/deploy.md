@@ -13,7 +13,7 @@ $ mason deploy [OPTIONS]
 
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
-| `--env` | text | Required | The Environment to deploy. |
+| `--env` | text |  | The Environment to deploy. Required: a deploy never uses the default Environment. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 

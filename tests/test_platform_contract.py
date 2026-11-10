@@ -173,3 +173,94 @@ def test_a_project_with_no_domains_compiles_to_a_package_with_no_pipelines(proje
     assert result.exit_code == 0, result.output
     bundle = yaml.safe_load((project / "build/databricks.yaml").read_text())
     assert bundle["resources"]["pipelines"] == {}
+
+
+DEV_ONLY = "environments:\n  dev:\n    host: {host}\n"
+
+
+def environments(project: Path, block: str) -> None:
+    edit(project, DEV_ONLY.format(host=PLACEHOLDER_HOST), block)
+
+
+def test_test_and_prod_use_devs_host_unless_they_set_their_own(project: Path):
+    environments(
+        project,
+        "environments:\n  dev:\n    host: https://dev.example.com\n  test: {}\n"
+        "  prod:\n    host: https://prod.example.com\n",
+    )
+
+    loaded = load(project)
+
+    assert loaded.platform.hosts == {
+        "dev": "https://dev.example.com",
+        "test": "https://dev.example.com",
+        "prod": "https://prod.example.com",
+    }
+
+
+@pytest.mark.parametrize(
+    "block",
+    [
+        "environments:\n  dev: {}\n  prod:\n    host: https://prod.example.com\n",
+        "environments:\n  prod:\n    host: https://prod.example.com\n",
+    ],
+)
+def test_a_contract_with_no_host_on_dev_fails_with_an_msn122(project: Path, block: str):
+    environments(project, block)
+
+    [diagnostic] = failures(project)
+
+    assert diagnostic["rule"] == "MSN122"
+    assert diagnostic["file"] == PLATFORM
+    assert "dev" in diagnostic["fix"]
+
+
+def test_two_default_environments_fail_with_an_msn123(project: Path):
+    environments(
+        project,
+        f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n    default: true\n"
+        "  test:\n    default: true\n  prod: {}\n",
+    )
+
+    [diagnostic] = failures(project)
+
+    assert diagnostic["rule"] == "MSN123"
+    assert "dev" in diagnostic["message"] and "test" in diagnostic["message"]
+
+
+@pytest.mark.parametrize(
+    ("test_settings", "default"), [("{}", "dev"), ("\n    default: true", "test")]
+)
+def test_the_default_environment_is_the_one_marked_default_or_else_dev(
+    project: Path, test_settings: str, default: str
+):
+    environments(
+        project, f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n  test: {test_settings}\n"
+    )
+
+    assert load(project).platform.default_environment == default
+
+
+@pytest.mark.parametrize("marked", ["", "\n    default: true"])
+def test_deploy_without_env_exits_2_with_a_fix_whatever_the_default(project: Path, marked: str):
+    environments(project, f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}{marked}\n")
+
+    result = mason(project, "deploy", "--json")
+
+    assert result.exit_code == 2, result.output
+    [diagnostic] = json.loads(result.stdout)["diagnostics"]
+    assert diagnostic["rule"] == "MSN901"
+    assert "--env dev" in diagnostic["fix"]
+
+
+def test_a_contract_with_a_host_on_every_environment_validates_unchanged(project: Path):
+    hosts = {env: f"https://{env}.example.com" for env in ("dev", "test", "prod")}
+    environments(
+        project,
+        "environments:\n" + "".join(f"  {env}:\n    host: {h}\n" for env, h in hosts.items()),
+    )
+
+    result = mason(project, "validate")
+
+    assert result.exit_code == 0, result.output
+    assert load(project).platform.hosts == hosts
