@@ -58,10 +58,9 @@ RECOVERY_GUIDE = "[Recover from a failed refresh](../../guides/recover-from-a-fa
 COUNTRIES_CONFIG = "kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  code: STRING\n"
 # `mason.platform.yaml` as `mason init` writes it, up to `domains`, for examples that add one.
 PLATFORM_HEAD = (
-    "kind: platform\nversion: 1\nname: shop\nenvironments:\n  dev:\n"
+    "kind: platform\nversion: 2\nname: shop\nenvironments:\n  dev:\n"
     "    host: https://your-workspace.cloud.databricks.com\n"
-    'naming:\n  catalog: "{env}_{domain}"\n  schema: "{layer}"\n'
-    "  layers:\n    sources: [bronze, silver]\n    models: [gold]\n"
+    "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
 )
 INVOICES = "domains/finance/sources/invoices.yaml"
 INVOICES_AS_JSON = (
@@ -404,6 +403,51 @@ RULES = {
         ),
         fix="Keep `default: true` on one Environment and remove it from the others. With none,"
         " dev is the default.",
+    ),
+    "MSN124": Rule(
+        "naming-patterns-not-supported",
+        checks="`mason.platform.yaml` sets `catalog` and `schema` patterns that aren't a Naming"
+        " Style, or sets any patterns at version 2, which takes only `naming.style`.",
+        why="Each Naming Style is a layout Mason tests end to end. A pattern of your own can go"
+        " wrong in ways a style can't: dev and prod can write to one table, every Domain's"
+        " silver can land in one schema, and two Domains joined with their Layers can give the"
+        " same schema name. Mason reads a version 1 file's patterns as the style they match,"
+        " and has no way yet to check patterns that match none.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace(
+                    "  style: domain-catalogs\n",
+                    '  catalog: "{env}"\n  schema: "{layer}"\n',
+                )
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Replace `catalog` and `schema` with `style`, set to `domain-catalogs`,"
+        " `layer-catalogs` or `environment-catalogs`, and set `version: 2`. For a version 1"
+        " file, the diagnostic names the closest style. If the project is deployed, check"
+        " where the style puts each table first, because a new style moves them. If none of"
+        " the styles fits, see [When none of these fit]"
+        "(../../concepts/naming.md#when-none-of-these-fit).",
+    ),
+    "MSN125": Rule(
+        "source-layers-fixed",
+        checks="A version 1 `mason.platform.yaml` lists source Layers other than"
+        " `[bronze, silver]`.",
+        why="Every Source makes a bronze table and a silver table, and Mason decides what each"
+        " one does: Expectations, quarantine and exported silver. Another name would only"
+        " relabel them, so the source Layers are always bronze and silver, and version 2 has no"
+        " field for them.",
+        example=Example(
+            {
+                "mason.platform.yaml": "kind: platform\nversion: 1\nname: shop\n"
+                "environments:\n  dev:\n    host: https://your-workspace.cloud.databricks.com\n"
+                'naming:\n  catalog: "{env}_{domain}"\n  schema: "{layer}"\n'
+                "  layers:\n    sources: [bronze, curated]\n    models: [gold]\n"
+                "domains:\n  - sales\n"
+            }
+        ),
+        fix="Remove `naming.layers.sources`, and set `version: 2` with `naming.style`. To add a"
+        " Layer, add it to `naming.layers.models`.",
     ),
     "MSN201": Rule(
         "unresolved-logical-name",

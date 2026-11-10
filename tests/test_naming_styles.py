@@ -1,4 +1,4 @@
-"""`mason init` offers three Naming Styles and writes each out as patterns."""
+"""`mason init` offers three Naming Styles and writes the one chosen into the contract."""
 
 import json
 from pathlib import Path
@@ -30,12 +30,11 @@ def add_environment(project: Path, env: str) -> None:
     contract.write_text(yaml.safe_dump(config, sort_keys=False))
 
 
-def test_layer_catalogs_writes_its_patterns_and_resolves_a_logical_name(tmp_path: Path):
+def test_layer_catalogs_writes_its_style_and_resolves_a_logical_name(tmp_path: Path):
     result = init(tmp_path, "--naming-style", "layer-catalogs", "--json")
     assert result.exit_code == 0, result.output
 
-    naming = yaml.safe_load((tmp_path / PLATFORM).read_text())["naming"]
-    assert (naming["catalog"], naming["schema"]) == ("{env}_{layer}", "{domain}")
+    assert naming(tmp_path) == "layer-catalogs"
     add_environment(tmp_path, "prod")
     compiled = mason(tmp_path, "compile", "--env", "prod")
     assert compiled.exit_code == 0, compiled.output
@@ -43,9 +42,9 @@ def test_layer_catalogs_writes_its_patterns_and_resolves_a_logical_name(tmp_path
 
 
 STYLES = [
-    ("domain-catalogs", "{env}_{domain}", "{layer}", "prod_sales.silver.orders"),
-    ("layer-catalogs", "{env}_{layer}", "{domain}", "prod_silver.sales.orders"),
-    ("environment-catalogs", "{env}", "{domain}_{layer}", "prod.sales_silver.orders"),
+    ("domain-catalogs", "prod_sales.silver.orders"),
+    ("layer-catalogs", "prod_silver.sales.orders"),
+    ("environment-catalogs", "prod.sales_silver.orders"),
 ]
 PATHS = {
     "domain-catalogs": "/Volumes/{env}_sales/bronze/landing/orders",
@@ -54,19 +53,13 @@ PATHS = {
 }
 
 
-@pytest.mark.parametrize(("style", "catalog", "schema", "silver"), STYLES)
-def test_each_style_writes_only_its_patterns_and_compiles(
-    tmp_path: Path, style: str, catalog: str, schema: str, silver: str
-):
+@pytest.mark.parametrize(("style", "silver"), STYLES)
+def test_each_style_writes_only_its_name_and_compiles(tmp_path: Path, style: str, silver: str):
     assert init(tmp_path, "--naming-style", style).exit_code == 0
 
     contract = yaml.safe_load((tmp_path / PLATFORM).read_text())
     assert set(contract) == {"kind", "version", "name", "environments", "naming", "domains"}
-    assert contract["naming"] == {
-        "catalog": catalog,
-        "schema": schema,
-        "layers": {"sources": ["bronze", "silver"], "models": ["gold"]},
-    }
+    assert contract["naming"] == {"style": style, "layers": {"models": ["gold"]}}
     assert mason(tmp_path, "validate").exit_code == 0
     add_environment(tmp_path, "prod")
     compiled = mason(tmp_path, "compile", "--env", "prod").stdout
@@ -136,9 +129,8 @@ def test_init_tells_a_person_what_to_create_and_that_any_style_fits_one_workspac
     assert "one workspace for all Environments" in result.stdout
 
 
-def naming(project: Path) -> tuple[str, str]:
-    written = yaml.safe_load((project / PLATFORM).read_text())["naming"]
-    return written["catalog"], written["schema"]
+def naming(project: Path) -> str:
+    return yaml.safe_load((project / PLATFORM).read_text())["naming"]["style"]
 
 
 def test_at_a_terminal_pressing_enter_takes_domain_catalogs(tmp_path: Path, monkeypatch):
@@ -147,7 +139,7 @@ def test_at_a_terminal_pressing_enter_takes_domain_catalogs(tmp_path: Path, monk
     result = init(tmp_path, input="\n")
 
     assert result.exit_code == 0, result.output
-    assert naming(tmp_path) == ("{env}_{domain}", "{layer}")
+    assert naming(tmp_path) == "domain-catalogs"
     for style in ("domain-catalogs", "layer-catalogs", "environment-catalogs"):
         assert style in result.output
     assert "prod_silver.sales.orders" in result.output
@@ -160,7 +152,7 @@ def test_at_a_terminal_another_style_can_be_chosen(tmp_path: Path, monkeypatch):
     result = init(tmp_path, input="environment-catalogs\n")
 
     assert result.exit_code == 0, result.output
-    assert naming(tmp_path) == ("{env}", "{domain}_{layer}")
+    assert naming(tmp_path) == "environment-catalogs"
 
 
 def test_with_the_flag_init_asks_nothing(tmp_path: Path, monkeypatch):
@@ -170,7 +162,7 @@ def test_with_the_flag_init_asks_nothing(tmp_path: Path, monkeypatch):
 
     assert result.exit_code == 0, result.output
     assert "Naming Style [" not in result.output
-    assert naming(tmp_path) == ("{env}_{layer}", "{domain}")
+    assert naming(tmp_path) == "layer-catalogs"
 
 
 def test_away_from_a_terminal_init_asks_nothing_and_takes_domain_catalogs(tmp_path: Path):
@@ -178,4 +170,4 @@ def test_away_from_a_terminal_init_asks_nothing_and_takes_domain_catalogs(tmp_pa
 
     assert result.exit_code == 0, result.output
     assert "Naming Style [" not in result.output
-    assert naming(tmp_path) == ("{env}_{domain}", "{layer}")
+    assert naming(tmp_path) == "domain-catalogs"

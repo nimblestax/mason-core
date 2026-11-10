@@ -9,6 +9,7 @@ from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
 from mason.cli import app
+from mason.kinds import versions
 
 runner = CliRunner()
 
@@ -135,8 +136,8 @@ def test_the_platform_contract_is_checked_like_any_other_file(project: Path):
     assert diagnostic["file"] == PLATFORM
 
 
-def test_a_platform_contract_with_three_source_layers_fails_with_the_field_named(project: Path):
-    edit(project, PLATFORM, "[bronze, silver]", "[bronze, silver, tin]")
+def test_a_platform_contract_listing_source_layers_fails_with_the_field_named(project: Path):
+    edit(project, PLATFORM, "  layers:\n", "  layers:\n    sources: [bronze, silver, tin]\n")
 
     [diagnostic] = failures(project)
 
@@ -237,7 +238,8 @@ def test_deploy_stops_on_invalid_config_before_touching_a_workspace(project: Pat
 
 def test_init_writes_a_copy_of_every_kinds_schema(project: Path):
     for kind in ("source", "seed", "model", "platform"):
-        copied = json.loads((project / f".mason/schemas/{kind}.v1.json").read_text())
+        latest = max(versions(kind))
+        copied = json.loads((project / f".mason/schemas/{kind}.v{latest}.json").read_text())
         installed = runner.invoke(app, ["schema", kind, "--json"])
         assert copied == json.loads(installed.stdout)["result"]["json_schema"]
 

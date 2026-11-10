@@ -88,7 +88,7 @@ class Ci(StrEnum):
 
 
 class NamingStyle(StrEnum):
-    """Matches `scaffold.NAMING_STYLES`, in the order `mason init` offers them."""
+    """Matches `names.NAMING_STYLES`, in the order `mason init` offers them."""
 
     domain_catalogs = "domain-catalogs"
     layer_catalogs = "layer-catalogs"
@@ -189,7 +189,7 @@ ONE_WORKSPACE_OR_MANY = (
 
 class Created(BaseModel):
     project: str = Field(description="The folder the project was created in.")
-    naming_style: str = Field(description="The Naming Style its patterns were written from.")
+    naming_style: str = Field(description="The Naming Style written into its Platform Contract.")
     catalogs: list[str] = Field(description="The catalogs to create before deploying.")
     schemas: list[str] = Field(
         description="The schemas to create before deploying, as `catalog.schema`."
@@ -235,11 +235,9 @@ def _at_a_terminal() -> bool:
 
 def _ask_naming_style() -> NamingStyle:
     """Asked on stderr, so `--json` output on stdout stays one envelope."""
-    example = {"env": "prod", "domain": "sales", "layer": "silver"}
     typer.echo("Where should tables live? A silver orders table in prod would be:", err=True)
-    for style, (catalog, schema) in scaffold.NAMING_STYLES.items():
-        table = f"{catalog.format(**example)}.{schema.format(**example)}.orders"
-        typer.echo(f"  {style:<22}{table}", err=True)
+    for style in names.NAMING_STYLES:
+        typer.echo(f"  {style:<22}{names.example_table(style)}", err=True)
     typer.echo(ONE_WORKSPACE_OR_MANY, err=True)
     chosen = typer.prompt(
         "Naming Style",

@@ -7,18 +7,12 @@ from importlib.resources import files
 from importlib.resources.abc import Traversable
 from pathlib import Path
 
+from mason import names
 from mason.diagnostics import USAGE_OR_ENVIRONMENT, Failure, error
 from mason.kinds import KINDS, json_schemas, platform
 
 PLACEHOLDER_HOST = "https://your-workspace.cloud.databricks.com"
 SCHEMA_FOLDER = Path(".mason/schemas")
-
-# Each Naming Style's catalog and schema patterns. Only the patterns are written out.
-NAMING_STYLES = {
-    "domain-catalogs": ("{env}_{domain}", "{layer}"),
-    "layer-catalogs": ("{env}_{layer}", "{domain}"),
-    "environment-catalogs": ("{env}", "{domain}_{layer}"),
-}
 
 # Templates that take values. The rest are copied as they are.
 FILLED_IN = {"mason.platform.yaml", "orders.yaml"}
@@ -38,11 +32,14 @@ def refuse_existing_project(root: Path) -> None:
 
 def write_project(root: Path, host: str, ci: str, naming_style: str) -> None:
     name = re.sub(r"\W+", "_", root.resolve().name).strip("_").lower()
-    catalog, schema = NAMING_STYLES[naming_style]
     # The starter Source reads a volume in the sales Domain's bronze, wherever the style puts it.
-    bronze = {"env": "{env}", "domain": "sales", "layer": "bronze"}
-    path = f"/Volumes/{catalog.format(**bronze)}/{schema.format(**bronze)}/landing/orders"
-    values = {"host": host, "name": name, "catalog": catalog, "schema": schema, "path": path}
+    catalog, schema = names.real_names(naming_style, "{env}", "sales", "bronze")
+    path = f"/Volumes/{catalog}/{schema}/landing/orders"
+    # Every style, so the comment stays true whichever one the file names.
+    styles = "\n".join(
+        f"  #   {style:<22}{names.example_table(style)}" for style in names.NAMING_STYLES
+    )
+    values = {"host": host, "name": name, "style": naming_style, "styles": styles, "path": path}
     templates = files("mason") / "templates"
     _copy(templates / "project", root, values)
     _copy(templates / "ci" / ci, root, {})

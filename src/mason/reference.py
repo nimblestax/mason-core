@@ -102,6 +102,8 @@ def _type(field: dict[str, Any]) -> str:
         return f"`{field['const']}`"
     if "enum" in field:
         return "one of " + ", ".join(f"`{value}`" for value in field["enum"])
+    if "oneOf" in field:  # Choices that each carry a description, such as the Naming Styles.
+        return "one of " + ", ".join(f"`{choice['const']}`" for choice in field["oneOf"])
     if "$ref" in field:
         return "object"
     if field["type"] == "array":

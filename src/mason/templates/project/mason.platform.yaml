@@ -1,15 +1,16 @@
-# yaml-language-server: $schema=.mason/schemas/platform.v1.json
+# yaml-language-server: $schema=.mason/schemas/platform.v2.json
 kind: platform
-version: 1
+version: 2
 name: {name}
 environments:
   dev:
     host: {host}
 naming:
-  catalog: "{catalog}"
-  schema: "{schema}"
+  # Where tables live. Under each Naming Style, sales.silver.orders in prod is:
+{styles}
+  # How names resolve in each Environment: https://nimblestax.com/docs/concepts/naming
+  style: {style}
   layers:
-    sources: [bronze, silver]
     models: [gold]
 domains:
   - sales
