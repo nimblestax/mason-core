@@ -14,6 +14,7 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 - In `mason.platform.yaml`, test and prod use dev's `host` unless they set their own, so a project on one workspace sets `host` once. dev's `host` is required, with [`MSN122`](reference/rules/msn122.md).
 - One Environment may set `default: true`. With none, dev is the default. Two defaults fail with [`MSN123`](reference/rules/msn123.md).
 - `mason deploy` without `--env` says to add one, and exits 2. It never uses the default Environment.
+- A Rule's reference page links to the Nimblestax Way principle behind it by that principle's current name. [`MSN201`](reference/rules/msn201.md) and [`MSN205`](reference/rules/msn205.md) now link to Code names tables logically; Mason resolves the environment, and [`MSN116`](reference/rules/msn116.md) and [`MSN907`](reference/rules/msn907.md) to No row disappears silently.
 
 ## 0.2.0
 
