@@ -64,8 +64,10 @@ class Layers(BaseModel):
 
     model_config = STRICT
 
+    # Any list is read, so the upgrade to version 2 can say that source Layers are fixed.
     sources: list[str] = Field(
-        min_length=2, max_length=2, description="Exactly two source Layers, bronze then silver."
+        default=["bronze", "silver"],
+        description="Always `[bronze, silver]`, and optional. Version 2 has no such field.",
     )
     models: list[str] = Field(
         min_length=1, description="One or more model Layers, read left to right."
@@ -162,7 +164,28 @@ class ModelLayers(BaseModel):
 
     model_config = STRICT
 
-    models: list[str] = Field(min_length=1, description="One or more model Layers.")
+    models: list[Identifier] = Field(
+        min_length=1,
+        description="One or more model Layers, in any order. Each is a folder under `models/`.",
+    )
+
+    @field_validator("models")
+    @classmethod
+    def _models_are_not_source_layers(cls, models: list[str]) -> list[str]:
+        # Catalog and schema names ignore case, so `Silver` would be silver's schema.
+        taken = [layer for layer in models if layer.lower() in SOURCE_LAYERS]
+        if taken:
+            raise PydanticCustomError(
+                "MSN126",
+                "`naming.layers.models` names {taken}, which is a source Layer. Sources fill"
+                " bronze and silver, and Gold Models fill only model Layers.",
+                {
+                    "taken": " and ".join(taken),
+                    "fix": "Rename the model Layer, such as to `gold` or `marts`, and rename its"
+                    " folder under `models/` to match.",
+                },
+            )
+        return unique(models, "model Layer")
 
 
 class NamingV2(BaseModel):

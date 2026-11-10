@@ -30,7 +30,7 @@ def generated_files(project: Project) -> dict[Path, str]:
             item, target
         )
     for item in project.models:
-        layer = item.layer(project.platform.model_layers)
+        layer = item.layer
         target = names.placeholders(LogicalName(item.domain, layer, item.name))
         path = Path("src") / item.domain / "gold" / f"{item.name}.sql"
         query = sql.escape_placeholders(item.query)

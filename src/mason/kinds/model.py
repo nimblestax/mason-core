@@ -27,10 +27,10 @@ class ModelV1(InDomain):
         pattern=r"^[^/\\]+\.sql$", description="The SQL file, in the same folder as this file."
     )
 
-    def layer(self, model_layers: tuple[str, ...]) -> str:
-        """The first folder under `models/` names the Layer. A file directly in `models/` is in
-        the last model Layer."""
-        return self.folders[0] if self.folders else model_layers[-1]
+    @property
+    def layer(self) -> str:
+        """The first folder under `models/` names the Layer. Any deeper folders only group files."""
+        return self.folders[0]
 
     @property
     def sql_file(self) -> Path:

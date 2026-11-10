@@ -49,7 +49,9 @@ def render(project: Project) -> str:
 
 def _pipeline(project: Project, domain: str, group: str) -> dict:
     platform = project.platform
-    layer = platform.source_layers[0] if group == "ingest" else platform.model_layers[-1]
+    # Every table is written by its full name, so this is only the pipeline's default. Model
+    # Layers have no order, so the first by name keeps it the same however the list is ordered.
+    layer = platform.source_layers[0] if group == "ingest" else min(platform.model_layers)
     keys = names.settings(project, next(iter(platform.hosts)))
     return {
         "name": f"{platform.name}_{domain}_{group}",

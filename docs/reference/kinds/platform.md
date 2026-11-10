@@ -20,5 +20,5 @@ A file with `kind: platform`, at version 2. `mason schema platform` prints the s
 | `naming` | object | yes |  | The Naming Style, and the model Layers. |
 | `naming.style` | one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs` | yes |  | Where tables live. In prod, `sales.silver.orders` is `prod_sales.silver.orders` under `domain-catalogs`, `prod_silver.sales.orders` under `layer-catalogs`, `prod.sales_silver.orders` under `environment-catalogs`. |
 | `naming.layers` | object | yes |  | The model Layers. |
-| `naming.layers.models` | list of string | yes |  | One or more model Layers. |
+| `naming.layers.models` | list of string | yes |  | One or more model Layers, in any order. Each is a folder under `models/`. |
 | `domains` | list of string | yes |  | The Domains, one folder each under `domains/`. |

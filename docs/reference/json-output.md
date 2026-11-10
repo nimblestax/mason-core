@@ -102,12 +102,14 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN117`](rules/msn117.md) | `invalid-name` | A config file's name isn't an identifier, so the table named after it can't be written in SQL: it must hold only letters, digits and underscores, and not start with a digit. |
 | [`MSN118`](rules/msn118.md) | `invalid-delete-when` | A Source's `silver.delete_when` isn't one SQL condition on one row, for the same reasons as `MSN116`. |
 | [`MSN119`](rules/msn119.md) | `invalid-sequence-by` | A Source's `silver.sequence_by` isn't one SQL expression on one row, such as `updated_at` or `struct(updated_at, seq)`: it doesn't parse, or it holds a query, an aggregate, a window function, a comment or an alias. |
-| [`MSN120`](rules/msn120.md) | `duplicate-config-file` | Two config files share a name in one folder, such as `orders.yaml` and `orders.yml`. Mason reads either ending, and writes `.yaml`. |
+| [`MSN120`](rules/msn120.md) | `duplicate-config-file` | Two config files share a name in one Domain's Layer: in one folder, such as `orders.yaml` and `orders.yml`, or in two folders, such as `sources/erp/orders.yaml` and `sources/crm/orders.yaml`. Mason reads either ending, and writes `.yaml`. |
 | [`MSN121`](rules/msn121.md) | `unlisted-domain-folder` | A folder under `domains/` isn't listed in `domains` in `mason.platform.yaml`, in the same case, so nothing in it is validated or deployed. |
 | [`MSN122`](rules/msn122.md) | `dev-host-missing` | `mason.platform.yaml` has no `host` on the dev Environment. |
 | [`MSN123`](rules/msn123.md) | `two-default-environments` | More than one Environment in `mason.platform.yaml` sets `default: true`. |
 | [`MSN124`](rules/msn124.md) | `naming-patterns-not-supported` | `mason.platform.yaml` sets `catalog` and `schema` patterns that aren't a Naming Style, or sets any patterns at version 2, which takes only `naming.style`. |
 | [`MSN125`](rules/msn125.md) | `source-layers-fixed` | A version 1 `mason.platform.yaml` lists source Layers other than `[bronze, silver]`. |
+| [`MSN126`](rules/msn126.md) | `model-layer-named-like-a-source-layer` | A model Layer in `naming.layers.models` is called `bronze` or `silver`, in any case. |
+| [`MSN127`](rules/msn127.md) | `model-outside-a-layer` | A file sits directly in a Domain's `models/` folder, or in a first folder under it that isn't a model Layer in `naming.layers.models`. |
 | [`MSN201`](rules/msn201.md) | `unresolved-logical-name` | SQL reads a table that isn't in the project. |
 | [`MSN202`](rules/msn202.md) | `duplicate-table` | A Seed and a Source in one Domain share a name, so they would be one table. |
 | [`MSN203`](rules/msn203.md) | `unparseable-sql` | A Gold Model's SQL doesn't parse as one Databricks SQL query. |

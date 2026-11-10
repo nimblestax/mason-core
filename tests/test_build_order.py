@@ -37,11 +37,11 @@ def write_source(project: Path, domain: str, name: str, silver: str = "") -> Non
 
 
 def write_model(project: Path, domain: str, name: str, query: str) -> str:
-    folder = project / "domains" / domain / "models"
+    folder = project / "domains" / domain / "models/gold"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / f"{name}.yaml").write_text(f"kind: model\nversion: 1\nsql: {name}.sql\n")
     (folder / f"{name}.sql").write_text(query)
-    return f"domains/{domain}/models/{name}.sql"
+    return f"domains/{domain}/models/gold/{name}.sql"
 
 
 def failures(project: Path) -> list[dict]:
