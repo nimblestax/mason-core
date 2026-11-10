@@ -3,7 +3,7 @@ title: Mason
 description: What Mason is, and where to start reading.
 ---
 
-Mason brings the software development lifecycle to Databricks pipelines. A pipeline is YAML and SQL in your repo, from bronze to gold. Mason checks it with no workspace, compiles it for each Environment, and deploys it, so every change is reviewed in a pull request, tested, and promoted from dev to prod.
+Mason brings the software development lifecycle to Databricks. Today it covers pipelines, from bronze to gold, and it grows to cover more of the platform. A pipeline is YAML and SQL in your repo. Mason checks it with no workspace, compiles it for each Environment, and deploys it, so every change is reviewed in a pull request, tested, and promoted from dev to prod.
 
 ## Where to start
 
