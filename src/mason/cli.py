@@ -281,7 +281,7 @@ def init(
         typer.Option(
             "--example",
             help="Write an example project with its sample data, such as `kettle`, instead of"
-            " a new one.",
+            " a new one. It keeps the Naming Style it ships with.",
             show_default=False,
         ),
     ] = None,
@@ -297,20 +297,22 @@ def init(
     """Create a working project in a folder, by default the current one."""
     if example:
         scaffold.refuse_unknown_example(example)
+        if naming_style:
+            raise Failure([_EXAMPLE_WITH_NAMING_STYLE], USAGE_OR_ENVIRONMENT)
     scaffold.refuse_existing_project(folder)  # Before the question, so no answer is wasted.
-    style = naming_style or (
-        _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
-    )
     if example:
-        scaffold.write_example(folder, example, host, ci.value, style.value)
+        scaffold.write_example(folder, example, host, ci.value)
     else:
+        style = naming_style or (
+            _ask_naming_style() if _at_a_terminal() else NamingStyle.domain_catalogs
+        )
         scaffold.write_project(folder, host, ci.value, style.value)
     installed = skills.install(folder) if with_skills == Skills.all else skills.Installed([], [])
     loaded = project.load(folder)
     catalogs, schemas = names.platform_objects(loaded.platform)
     created = Created(
         project=str(folder),
-        naming_style=style.value,
+        naming_style=loaded.platform.naming.style,
         catalogs=catalogs,
         schemas=schemas,
         skills=installed.written,
@@ -320,6 +322,16 @@ def init(
         uploads=_uploads(loaded, folder) if example else [],
     )
     return Outcome(_created_text(created), created, skills.ignored(folder))
+
+
+# An example ships with its Naming Style, so the docs can show its files as they are.
+_EXAMPLE_WITH_NAMING_STYLE = error(
+    "MSN901",
+    "",
+    "`mason init --example` writes the example with the Naming Style it ships with, so it takes"
+    " no `--naming-style`.",
+    "Remove `--naming-style`, or leave out `--example` to start a new project in that style.",
+)
 
 
 DEV = "dev"

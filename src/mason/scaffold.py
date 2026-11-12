@@ -76,28 +76,15 @@ def refuse_unknown_example(example: str) -> None:
         raise Failure([found], USAGE_OR_ENVIRONMENT)
 
 
-def write_example(root: Path, example: str, host: str, ci: str, naming_style: str) -> None:
-    """An example is written as a working project in the dev Environment, under the
-    domain-catalogs Naming Style, so its files can be shown in the docs as they are. Writing
-    one under another style moves its tables and the Volume its Sources read."""
+def write_example(root: Path, example: str, host: str, ci: str) -> None:
+    """An example is written as it ships, so its files match the docs, with only the host given."""
 
-    def restyled(name: str, text: str) -> str:
-        text = text.replace(PLACEHOLDER_HOST, host)
-        text = text.replace("style: domain-catalogs", f"style: {naming_style}")
-        return VOLUME_IN_BRONZE.sub(lambda found: _volume(naming_style, found["domain"]), text)
+    def hosted(name: str, text: str) -> str:
+        return text.replace(PLACEHOLDER_HOST, host)
 
-    _copy(files("mason") / "examples" / example, root, restyled)
+    _copy(files("mason") / "examples" / example, root, hosted)
     _copy(files("mason") / "templates" / "ci" / ci, root)
     _write_schemas(root)
-
-
-# A Volume in a Domain's bronze schema, as an example's Source paths name it.
-VOLUME_IN_BRONZE = re.compile(r"/Volumes/\{env\}_(?P<domain>\w+)/bronze/")
-
-
-def _volume(naming_style: str, domain: str) -> str:
-    catalog, schema = names.real_names(naming_style, "{env}", domain, "bronze")
-    return f"/Volumes/{catalog}/{schema}/"
 
 
 def _filled_in(name: str, text: str, values: dict[str, str]) -> str:

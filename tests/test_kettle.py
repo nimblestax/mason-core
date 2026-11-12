@@ -10,10 +10,12 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
+from mason import cli
 from mason.cli import app
 from mason.names import NAMING_STYLES
 
 runner = CliRunner()
+KETTLE = Path(str(files("mason") / "examples" / "kettle"))
 
 
 def init_kettle(folder: Path, *args: str):
@@ -22,8 +24,9 @@ def init_kettle(folder: Path, *args: str):
 
 @pytest.mark.parametrize("style", NAMING_STYLES)
 def test_kettle_is_a_valid_project_under_every_naming_style(tmp_path: Path, style: str):
-    result = init_kettle(tmp_path, "--naming-style", style)
-    assert result.exit_code == 0, result.output
+    assert init_kettle(tmp_path).exit_code == 0
+    contract = tmp_path / "mason.platform.yaml"
+    contract.write_text(contract.read_text().replace("style: domain-catalogs", f"style: {style}"))
 
     validated = runner.invoke(app, ["validate", "--project", str(tmp_path), "--json"])
 
@@ -32,7 +35,7 @@ def test_kettle_is_a_valid_project_under_every_naming_style(tmp_path: Path, styl
 
 
 def test_init_writes_the_day_folders_and_prints_what_to_create_and_how_to_upload(tmp_path: Path):
-    result = init_kettle(tmp_path, "--naming-style", "domain-catalogs")
+    result = init_kettle(tmp_path)
 
     assert result.exit_code == 0, result.output
     for day in ("day-1", "day-2"):
@@ -48,19 +51,33 @@ def test_init_writes_the_day_folders_and_prints_what_to_create_and_how_to_upload
     ) in result.stdout
 
 
-def test_under_another_naming_style_the_sources_read_the_volume_where_that_style_puts_it(
-    tmp_path: Path,
-):
-    result = init_kettle(tmp_path, "--naming-style", "environment-catalogs", "--json")
+def test_init_writes_kettle_exactly_as_it_ships(tmp_path: Path):
+    result = init_kettle(tmp_path, "--json")
 
-    created = json.loads(result.stdout)["result"]
-    assert created["example"] == "kettle"
-    assert created["volumes"] == ["dev.sales_bronze.landing"]
-    assert (
-        "path: /Volumes/{env}/sales_bronze/landing/orders\n"
-        in (tmp_path / "domains/sales/sources/orders.yaml").read_text()
-    )
-    assert "style: environment-catalogs\n" in (tmp_path / "mason.platform.yaml").read_text()
+    assert json.loads(result.stdout)["result"]["example"] == "kettle"
+    for shipped in KETTLE.rglob("*"):
+        if shipped.is_file():
+            relative = shipped.relative_to(KETTLE).as_posix()
+            written = tmp_path / (".gitignore" if relative == "gitignore" else relative)
+            assert written.read_text() == shipped.read_text(), relative
+
+
+def test_an_example_takes_no_naming_style(tmp_path: Path):
+    result = init_kettle(tmp_path, "--naming-style", "layer-catalogs", "--json")
+
+    assert result.exit_code == 2
+    [diagnostic] = json.loads(result.stdout)["diagnostics"]
+    assert diagnostic["rule"] == "MSN901"
+    assert not (tmp_path / "mason.platform.yaml").exists()
+
+
+def test_at_a_terminal_an_example_asks_no_naming_style(tmp_path: Path, monkeypatch):
+    monkeypatch.setattr(cli, "_at_a_terminal", lambda: True)
+
+    result = init_kettle(tmp_path)
+
+    assert result.exit_code == 0, result.output
+    assert "Where should tables live?" not in result.output
 
 
 def test_the_host_given_is_written_into_the_platform_contract(tmp_path: Path):
@@ -80,9 +97,6 @@ def test_an_unknown_example_fails_with_a_rule_that_lists_the_examples(tmp_path: 
     assert diagnostic["rule"] == "MSN916"
     assert "kettle" in diagnostic["fix"]
     assert not (tmp_path / "mason.platform.yaml").exists()
-
-
-KETTLE = Path(str(files("mason") / "examples" / "kettle"))
 
 
 def rows(day: str, source: str) -> list[dict]:
