@@ -46,15 +46,9 @@ Any environment without a role is a stage, such as `test`, `sit` or `uat`. Add a
 
 ## One shared workspace
 
-Environments can share a workspace. The environment's name is part of every catalog name, so environments sharing a workspace never share a table. When the production environment shares one, `mason validate` still passes, and warns:
+Environments can share a workspace, under every naming style. The environment's name is part of every catalog name, so environments sharing a workspace never share a table.
 
-```text
-MSN128 mason.platform.yaml (warning): The Production Environment, prod, uses the same workspace as dev, sit and test, so it isn't isolated by workspace. Only catalogs, CI identities and grants keep it apart.
-  Fix: To isolate prod, give it its own `host` in `environments.prod`. On one workspace, keep each Environment's CI identity and grants separate.
-Valid.
-```
-
-Give the production environment its own `host` when you can. Until then, keep each environment's CI identity and grants separate.
+On one workspace, what keeps the production environment apart is each environment's CI identity and the grants on its catalogs. Mason doesn't check either, so give each environment its own CI identity, and grant on each environment's catalogs separately. When you can, give the production environment its own `host`, so a workspace boundary keeps it apart too.
 
 ## Upgrading a version 1 file
 

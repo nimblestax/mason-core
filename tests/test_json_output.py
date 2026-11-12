@@ -272,7 +272,6 @@ REGISTERED_RULES = {
     "MSN125": "source-layers-fixed",
     "MSN126": "model-layer-named-like-a-source-layer",
     "MSN127": "model-outside-a-layer",
-    "MSN128": "production-shares-a-workspace",
     "MSN129": "skill-version-drift",
     "MSN130": "no-development-environment",
     "MSN131": "two-environments-with-one-role",
@@ -308,8 +307,14 @@ REGISTERED_RULES = {
 }
 
 
+# Removed before any release, so no project ever saw them. Their IDs are still never reused.
+RETIRED_RULES = {"MSN128": "production-shares-a-workspace"}
+
+
 def test_no_rule_id_is_removed_reused_or_changes_meaning():
     assert {code: rule.name for code, rule in RULES.items()} == REGISTERED_RULES
+    assert not RETIRED_RULES.keys() & REGISTERED_RULES.keys()
+    assert not set(RETIRED_RULES.values()) & set(REGISTERED_RULES.values())
 
 
 def test_rule_ids_are_msn_plus_three_digits_with_one_name_each():
@@ -475,7 +480,7 @@ def test_a_new_rule_must_be_tested_here():
     usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905", "MSN909"}
     refresh_failures = {"MSN906", "MSN907", "MSN908"}
     pinned_cli_failures = {"MSN910", "MSN911", "MSN912", "MSN913"}
-    platform_checks = {"MSN128", "MSN301", "MSN302"}
+    platform_checks = {"MSN301", "MSN302"}
     skills = {"MSN129", "MSN914", "MSN915"}
 
     assert set(RULES) == (

@@ -493,28 +493,7 @@ RULES = {
         fix="Move the file into a folder named after a model Layer, which the diagnostic lists."
         " To add a Layer, add it to `naming.layers.models` in `mason.platform.yaml`.",
     ),
-    "MSN128": Rule(
-        "production-shares-a-workspace",
-        checks="The Production Environment uses the same workspace as another Environment. This"
-        " is a warning, and `mason validate` still passes.",
-        why="One workspace for every Environment works under every Naming Style, so a team can"
-        " start on a single free workspace. The Environment is part of every catalog name, so"
-        " Environments never share a table. But the Production Environment is then kept apart"
-        " only by catalogs, each"
-        " Environment's CI identity and their grants, not by a workspace boundary, and a grant"
-        " set too wide reaches prod.",
-        example=Example(
-            {
-                "mason.platform.yaml": PLATFORM_HEAD.replace(
-                    "naming:", "  prod:\n    role: production\nnaming:"
-                )
-                + "domains:\n  - sales\n"
-            }
-        ),
-        fix="Give the Production Environment its own `host` when you can. Until then, keep each"
-        " Environment's CI identity and grants separate.",
-        severity="warning",
-    ),
+    # MSN128 `production-shares-a-workspace` was removed before any release. Never reuse it.
     "MSN129": Rule(
         "skill-version-drift",
         checks="A Mason Skill in `.agents/skills/` or `.claude/skills/` was written by another"

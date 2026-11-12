@@ -30,7 +30,7 @@ Each style puts the environment first, then the domain and the layer, and joins 
 
 Every style works with one workspace for all environments, or one workspace per environment. The environment is always part of the catalog name, so environments sharing a workspace never share a table.
 
-On one workspace, the production environment is kept apart from the others only by its catalogs, each environment's CI identity and their grants. `mason validate` says so with the warning [`MSN128`](../reference/rules/msn128.md), and still passes. See [Environments](environments.md#one-shared-workspace).
+On one workspace, the production environment is kept apart from the others by its catalogs, each environment's CI identity and their grants. See [Environments](environments.md#one-shared-workspace).
 
 ## How a logical name resolves
 

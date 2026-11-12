@@ -134,26 +134,6 @@ def test_a_version_1_contract_upgrades_with_roles_on_dev_and_prod(project: Path)
     assert loaded.platform.default_environment == "dev"
 
 
-def test_the_production_environment_sharing_a_workspace_warns_with_an_msn128(project: Path):
-    environments(project, FOUR_STAGES)
-
-    result = mason(project, "validate", "--json")
-
-    assert result.exit_code == 0, result.output
-    [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN128"
-    assert "environments.prd" in diagnostic["fix"]
-
-
-def test_an_environment_named_prod_without_the_role_is_an_ordinary_stage(project: Path):
-    environments(project, DEV_ONLY + "  prod: {}\n")
-
-    result = mason(project, "validate", "--json")
-
-    assert result.exit_code == 0, result.output
-    assert json.loads(result.stdout)["diagnostics"] == []
-
-
 SCHEDULE = "\n    schedule:\n      cron: 0 0 6 * * ?\n"
 
 

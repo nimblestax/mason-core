@@ -110,21 +110,13 @@ def test_env_checks_that_environment_in_its_own_workspace(
     ]
 
 
-def test_prod_sharing_a_workspace_warns_and_still_passes(project: Path):
-    add_prod(project, None)  # So it uses dev's workspace.
-
-    result = mason(project, "validate", "--json")
-
-    assert result.exit_code == 0, result.output
-    envelope = json.loads(result.stdout)
-    assert envelope["ok"] is True
-    [diagnostic] = envelope["diagnostics"]
-    assert (diagnostic["rule"], diagnostic["severity"]) == ("MSN128", "warning")
-    assert "prod" in diagnostic["message"]
-
-
-def test_prod_in_its_own_workspace_gives_no_warning(project: Path):
-    add_prod(project, PROD_HOST)
+@pytest.mark.parametrize("host", [None, PROD_HOST])
+def test_prod_in_a_shared_or_its_own_workspace_validates_with_no_warning(
+    project: Path, host: str | None
+):
+    # Every Naming Style puts the Environment in the catalog, so a shared workspace shares no
+    # table, and its identities and grants are nothing Mason checks.
+    add_prod(project, host)
 
     result = mason(project, "validate", "--json")
 

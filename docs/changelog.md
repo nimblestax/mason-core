@@ -20,7 +20,7 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
 - `mason validate --platform` signs in to an environment's workspace and checks that the catalogs and schemas the project needs are there, before a deploy. It checks the default environment, or the one `--env` names. Plain `mason validate` still reads no workspace. See [Naming](concepts/naming.md).
   - New rules: [`MSN301`](reference/rules/msn301.md) `missing-catalog` and [`MSN302`](reference/rules/msn302.md) `missing-schema`. Each exits 1.
   - The workflows `mason init --ci github` writes run `mason validate --platform --env dev`. The pull request job now signs in as dev's identity, through the `dev` GitHub environment.
-- When prod uses the same workspace as another environment, `mason validate` warns with [`MSN128`](reference/rules/msn128.md) `production-shares-a-workspace`, and still passes. A diagnostic's `severity` can now be `warning`, and a command that succeeds lists its warnings in `diagnostics`.
+- A diagnostic's `severity` can now be `warning`. A warning never fails a command, and a command that succeeds lists its warnings in `diagnostics`.
 - `mason.platform.yaml` keeps the naming style by name, as `naming.style`, in version 2 of the `platform` Kind. Hand-edited `catalog` and `schema` patterns are no longer accepted. `mason init` writes version 2, with a comment that lists the three styles. See [Naming](concepts/naming.md).
   - A version 1 file still works when its patterns match a style, and Mason reads it as that style. Patterns that match none fail with [`MSN124`](reference/rules/msn124.md) `naming-patterns-not-supported`, which names the closest style.
   - The source layers are always `bronze` and `silver`. A version 1 file that names others fails with [`MSN125`](reference/rules/msn125.md) `source-layers-fixed`.
@@ -39,7 +39,7 @@ Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor rel
   - `mason init` warns when Git ignores a skills folder, with [`MSN914`](reference/rules/msn914.md) `skills-folder-ignored`.
 - Environments can be named freely, and carry a role: `role: development` on exactly one, and `role: production` on at most one. Any other environment is a stage, and you can add as many as you need. An environment's name is what appears in its catalogs, so `prd` gives `prd_sales.silver.orders`. Mason no longer reads meaning into the names `dev` and `prod`. See [Environments](concepts/environments.md).
   - Commands that read default to the development environment, and an environment without a `host` uses its host. MSN122 now means the development environment has no `host`.
-  - A schedule runs in the production environment and is paused elsewhere, and [`MSN128`](reference/rules/msn128.md) warns when the production environment shares a workspace.
+  - A schedule runs in the production environment and is paused elsewhere.
   - `mason init` writes `role: development` on `dev`. A version 1 file needs no change: Mason gives `dev` the development role and `prod` the production role.
   - New rules: [`MSN130`](reference/rules/msn130.md) `no-development-environment`, [`MSN131`](reference/rules/msn131.md) `two-environments-with-one-role` and [`MSN132`](reference/rules/msn132.md) `environment-name-not-an-identifier`.
 
