@@ -190,7 +190,7 @@ def test_a_project_with_no_domains_compiles_to_a_package_with_no_pipelines(proje
     assert bundle["resources"]["pipelines"] == {}
 
 
-DEV_ONLY = "environments:\n  dev:\n    host: {host}\n"
+DEV_ONLY = "environments:\n  dev:\n    host: {host}\n    role: development\n"
 
 
 def environments(project: Path, block: str) -> None:
@@ -200,7 +200,8 @@ def environments(project: Path, block: str) -> None:
 def test_test_and_prod_use_devs_host_unless_they_set_their_own(project: Path):
     environments(
         project,
-        "environments:\n  dev:\n    host: https://dev.example.com\n  test: {}\n"
+        "environments:\n  dev:\n    host: https://dev.example.com\n    role: development\n"
+        "  test: {}\n"
         "  prod:\n    host: https://prod.example.com\n",
     )
 
@@ -213,15 +214,12 @@ def test_test_and_prod_use_devs_host_unless_they_set_their_own(project: Path):
     }
 
 
-@pytest.mark.parametrize(
-    "block",
-    [
-        "environments:\n  dev: {}\n  prod:\n    host: https://prod.example.com\n",
-        "environments:\n  prod:\n    host: https://prod.example.com\n",
-    ],
-)
-def test_a_contract_with_no_host_on_dev_fails_with_an_msn122(project: Path, block: str):
-    environments(project, block)
+def test_a_contract_with_no_host_on_dev_fails_with_an_msn122(project: Path):
+    environments(
+        project,
+        "environments:\n  dev:\n    role: development\n"
+        "  prod:\n    host: https://prod.example.com\n",
+    )
 
     [diagnostic] = failures(project)
 
@@ -233,7 +231,8 @@ def test_a_contract_with_no_host_on_dev_fails_with_an_msn122(project: Path, bloc
 def test_two_default_environments_fail_with_an_msn123(project: Path):
     environments(
         project,
-        f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n    default: true\n"
+        f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n    role: development\n"
+        "    default: true\n"
         "  test:\n    default: true\n  prod: {}\n",
     )
 
@@ -249,16 +248,14 @@ def test_two_default_environments_fail_with_an_msn123(project: Path):
 def test_the_default_environment_is_the_one_marked_default_or_else_dev(
     project: Path, test_settings: str, default: str
 ):
-    environments(
-        project, f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n  test: {test_settings}\n"
-    )
+    environments(project, DEV_ONLY.format(host=PLACEHOLDER_HOST) + f"  test: {test_settings}\n")
 
     assert load(project).platform.default_environment == default
 
 
-@pytest.mark.parametrize("marked", ["", "\n    default: true"])
+@pytest.mark.parametrize("marked", ["", "    default: true\n"])
 def test_deploy_without_env_exits_2_with_a_fix_whatever_the_default(project: Path, marked: str):
-    environments(project, f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}{marked}\n")
+    environments(project, DEV_ONLY.format(host=PLACEHOLDER_HOST) + marked)
 
     result = mason(project, "deploy", "--json")
 
@@ -270,9 +267,14 @@ def test_deploy_without_env_exits_2_with_a_fix_whatever_the_default(project: Pat
 
 def test_a_contract_with_a_host_on_every_environment_validates_unchanged(project: Path):
     hosts = {env: f"https://{env}.example.com" for env in ("dev", "test", "prod")}
+    roles = {"dev": "development", "test": None, "prod": "production"}
     environments(
         project,
-        "environments:\n" + "".join(f"  {env}:\n    host: {h}\n" for env, h in hosts.items()),
+        "environments:\n"
+        + "".join(
+            f"  {env}:\n    host: {h}\n" + (f"    role: {roles[env]}\n" if roles[env] else "")
+            for env, h in hosts.items()
+        ),
     )
 
     result = mason(project, "validate")

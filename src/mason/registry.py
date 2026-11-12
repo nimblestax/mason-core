@@ -61,7 +61,7 @@ COUNTRIES_CONFIG = "kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  cod
 # `mason.platform.yaml` as `mason init` writes it, up to `domains`, for examples that add one.
 PLATFORM_HEAD = (
     "kind: platform\nversion: 2\nname: shop\nenvironments:\n  dev:\n"
-    "    host: https://your-workspace.cloud.databricks.com\n"
+    "    host: https://your-workspace.cloud.databricks.com\n    role: development\n"
     "naming:\n  style: domain-catalogs\n  layers:\n    models: [gold]\n"
 )
 INVOICES = "domains/finance/sources/invoices.yaml"
@@ -377,20 +377,21 @@ RULES = {
     ),
     "MSN122": Rule(
         "dev-host-missing",
-        checks="`mason.platform.yaml` has no `host` on the dev Environment.",
-        why="dev is the Environment every project starts from, and its `host` is the workspace"
-        " Mason connects to. test and prod use dev's `host` unless they set their own, so"
-        " without it no Environment has a workspace.",
+        checks="`mason.platform.yaml` has no `host` on the Development Environment. In a version"
+        " 1 file, which knows Environments by name, it has no `host` on `dev`.",
+        why="The Development Environment is the one every project starts from, and its `host` is"
+        " the workspace Mason connects to. Every other Environment uses its `host` unless it"
+        " sets its own, so without it no Environment has a workspace.",
         example=Example(
             {
                 "mason.platform.yaml": PLATFORM_HEAD.replace(
-                    "  dev:\n    host: https://your-workspace.cloud.databricks.com\n",
-                    "  dev: {}\n",
+                    "    host: https://your-workspace.cloud.databricks.com\n", ""
                 )
                 + "domains:\n  - sales\n"
             }
         ),
-        fix="Add `host` under `environments.dev`, set to dev's workspace URL.",
+        fix="Add `host` under the Development Environment, such as `environments.dev`, set to"
+        " its workspace URL.",
     ),
     "MSN123": Rule(
         "two-default-environments",
@@ -401,14 +402,14 @@ RULES = {
         example=Example(
             {
                 "mason.platform.yaml": PLATFORM_HEAD.replace(
-                    "cloud.databricks.com\n",
-                    "cloud.databricks.com\n    default: true\n  prod:\n    default: true\n",
+                    "    role: development\n",
+                    "    role: development\n    default: true\n  prod:\n    default: true\n",
                 )
                 + "domains:\n  - sales\n"
             }
         ),
         fix="Keep `default: true` on one Environment and remove it from the others. With none,"
-        " dev is the default.",
+        " the Development Environment is the default.",
     ),
     "MSN124": Rule(
         "naming-patterns-not-supported",
@@ -492,25 +493,7 @@ RULES = {
         fix="Move the file into a folder named after a model Layer, which the diagnostic lists."
         " To add a Layer, add it to `naming.layers.models` in `mason.platform.yaml`.",
     ),
-    "MSN128": Rule(
-        "production-shares-a-workspace",
-        checks="`prod` uses the same workspace as another Environment. This is a warning, and"
-        " `mason validate` still passes.",
-        why="One workspace for every Environment works under every Naming Style, so a team can"
-        " start on a single free workspace. The Environment is part of every catalog name, so"
-        " Environments never share a table. But prod is then kept apart only by catalogs, each"
-        " Environment's CI identity and their grants, not by a workspace boundary, and a grant"
-        " set too wide reaches prod.",
-        example=Example(
-            {
-                "mason.platform.yaml": PLATFORM_HEAD.replace("naming:", "  prod: {}\nnaming:")
-                + "domains:\n  - sales\n"
-            }
-        ),
-        fix="Give prod its own `host` when you can. Until then, keep each Environment's CI"
-        " identity and grants separate.",
-        severity="warning",
-    ),
+    # MSN128 `production-shares-a-workspace` was removed before any release. Never reuse it.
     "MSN129": Rule(
         "skill-version-drift",
         checks="A Mason Skill in `.agents/skills/` or `.claude/skills/` was written by another"
@@ -529,6 +512,55 @@ RULES = {
         fix="Run `mason skills update`, which refreshes both copies of each skill, and commit"
         " them.",
         severity="warning",
+    ),
+    "MSN130": Rule(
+        "no-development-environment",
+        checks="No Environment in `mason.platform.yaml` sets `role: development`.",
+        why="Mason knows an Environment by its role, not its name. The Development Environment"
+        " is where pull request Plans compare against, where Preview Environments live, and the"
+        " workspace any Environment without a `host` uses. A project has exactly one, so Mason"
+        " doesn't guess it from a name.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace("    role: development\n", "")
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Add `role: development` to the Environment people develop in, such as `dev`.",
+    ),
+    "MSN131": Rule(
+        "two-environments-with-one-role",
+        checks="More than one Environment in `mason.platform.yaml` sets the same `role`.",
+        why="A project has exactly one Development Environment and at most one Production"
+        " Environment. Plans, Preview Environments and the approval gate each need to know which"
+        " one Environment they mean.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace(
+                    "naming:",
+                    "  test:\n    role: production\n  prod:\n    role: production\n" "naming:",
+                )
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Keep the role on one Environment and remove it from the others. Any Environment"
+        " without a role is an ordinary stage.",
+    ),
+    "MSN132": Rule(
+        "environment-name-not-an-identifier",
+        checks="An Environment's name in `mason.platform.yaml` isn't an identifier: letters,"
+        " digits and underscores, starting with a letter or underscore.",
+        why="An Environment's name goes into each of its catalogs, so `prd` gives"
+        " `prd_sales.silver.orders`. Mason writes catalog names into SQL unquoted, so the name"
+        " must be an identifier.",
+        example=Example(
+            {
+                "mason.platform.yaml": PLATFORM_HEAD.replace("naming:", "  prd-1: {}\nnaming:")
+                + "domains:\n  - sales\n"
+            }
+        ),
+        fix="Rename the Environment to letters, digits and underscores, such as `prd` or"
+        " `test_2`.",
     ),
     "MSN201": Rule(
         "unresolved-logical-name",

@@ -169,7 +169,7 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         "`mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on"
         " the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project,"
         " and so does every `MSN3xx` rule, which `mason validate --platform` finds in the"
-        " workspace. A diagnostic with `severity` set to `warning`, such as `MSN128`, is"
+        " workspace. A diagnostic with `severity` set to `warning`, such as `MSN129`, is"
         " reported and the command still exits 0.\n",
         "When `mason deploy` refreshes an Environment and a pipeline update fails, the"
         " diagnostic's `message` is the pipeline's own error, read from its event log: `MSN906`,"

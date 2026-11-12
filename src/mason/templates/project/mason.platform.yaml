@@ -5,6 +5,7 @@ name: {name}
 environments:
   dev:
     host: {host}
+    role: development
 naming:
   # Where tables live. Under each Naming Style, sales.silver.orders in prod is:
 {styles}

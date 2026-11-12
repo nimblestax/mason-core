@@ -90,7 +90,8 @@ def test_a_version_1_contract_with_renamed_source_layers_fails_pointing_to_a_mod
 def version_2(naming: str) -> str:
     return (
         "kind: platform\nversion: 2\nname: shop\nenvironments:\n  dev:\n"
-        f"    host: https://dev.example.com\nnaming:\n{naming}  layers:\n    models: [gold]\n"
+        "    host: https://dev.example.com\n    role: development\n"
+        f"naming:\n{naming}  layers:\n    models: [gold]\n"
         "domains:\n  - sales\n"
     )
 
@@ -158,7 +159,10 @@ def contract(style: str) -> PlatformV2:
             "kind": "platform",
             "version": 2,
             "name": "shop",
-            "environments": {"dev": {"host": "https://dev.example.com"}, "prd": {}},
+            "environments": {
+                "dev": {"host": "https://dev.example.com", "role": "development"},
+                "prd": {},
+            },
             "naming": {"style": style, "layers": {"models": ["marts", "serving"]}},
             "domains": ["sales", "finance"],
         }

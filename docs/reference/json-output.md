@@ -105,14 +105,16 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN119`](rules/msn119.md) | `invalid-sequence-by` | A Source's `silver.sequence_by` isn't one SQL expression on one row, such as `updated_at` or `struct(updated_at, seq)`: it doesn't parse, or it holds a query, an aggregate, a window function, a comment or an alias. |
 | [`MSN120`](rules/msn120.md) | `duplicate-config-file` | Two config files share a name in one Domain's Layer: in one folder, such as `orders.yaml` and `orders.yml`, or in two folders, such as `sources/erp/orders.yaml` and `sources/crm/orders.yaml`. Mason reads either ending, and writes `.yaml`. |
 | [`MSN121`](rules/msn121.md) | `unlisted-domain-folder` | A folder under `domains/` isn't listed in `domains` in `mason.platform.yaml`, in the same case, so nothing in it is validated or deployed. |
-| [`MSN122`](rules/msn122.md) | `dev-host-missing` | `mason.platform.yaml` has no `host` on the dev Environment. |
+| [`MSN122`](rules/msn122.md) | `dev-host-missing` | `mason.platform.yaml` has no `host` on the Development Environment. In a version 1 file, which knows Environments by name, it has no `host` on `dev`. |
 | [`MSN123`](rules/msn123.md) | `two-default-environments` | More than one Environment in `mason.platform.yaml` sets `default: true`. |
 | [`MSN124`](rules/msn124.md) | `naming-patterns-not-supported` | `mason.platform.yaml` sets `catalog` and `schema` patterns that aren't a Naming Style, or sets any patterns at version 2, which takes only `naming.style`. |
 | [`MSN125`](rules/msn125.md) | `source-layers-fixed` | A version 1 `mason.platform.yaml` lists source Layers other than `[bronze, silver]`. |
 | [`MSN126`](rules/msn126.md) | `model-layer-named-like-a-source-layer` | A model Layer in `naming.layers.models` is called `bronze` or `silver`, in any case. |
 | [`MSN127`](rules/msn127.md) | `model-outside-a-layer` | A file sits directly in a Domain's `models/` folder, or in a first folder under it that isn't a model Layer in `naming.layers.models`. |
-| [`MSN128`](rules/msn128.md) | `production-shares-a-workspace` | `prod` uses the same workspace as another Environment. This is a warning, and `mason validate` still passes. |
 | [`MSN129`](rules/msn129.md) | `skill-version-drift` | A Mason Skill in `.agents/skills/` or `.claude/skills/` was written by another version of Mason than the one installed. |
+| [`MSN130`](rules/msn130.md) | `no-development-environment` | No Environment in `mason.platform.yaml` sets `role: development`. |
+| [`MSN131`](rules/msn131.md) | `two-environments-with-one-role` | More than one Environment in `mason.platform.yaml` sets the same `role`. |
+| [`MSN132`](rules/msn132.md) | `environment-name-not-an-identifier` | An Environment's name in `mason.platform.yaml` isn't an identifier: letters, digits and underscores, starting with a letter or underscore. |
 | [`MSN201`](rules/msn201.md) | `unresolved-logical-name` | SQL reads a table that isn't in the project. |
 | [`MSN202`](rules/msn202.md) | `duplicate-table` | A Seed and a Source in one Domain share a name, so they would be one table. |
 | [`MSN203`](rules/msn203.md) | `unparseable-sql` | A Gold Model's SQL doesn't parse as one Databricks SQL query. |
@@ -143,6 +145,6 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN914`](rules/msn914.md) | `skills-folder-ignored` | `mason init` wrote Mason Skills into a folder Git ignores, such as `.claude/`. |
 | [`MSN915`](rules/msn915.md) | `skill-edited` | `mason skills update` found a Mason Skill edited since Mason wrote it. |
 
-`mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project, and so does every `MSN3xx` rule, which `mason validate --platform` finds in the workspace. A diagnostic with `severity` set to `warning`, such as `MSN128`, is reported and the command still exits 0.
+`mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project, and so does every `MSN3xx` rule, which `mason validate --platform` finds in the workspace. A diagnostic with `severity` set to `warning`, such as `MSN129`, is reported and the command still exits 0.
 
 When `mason deploy` refreshes an Environment and a pipeline update fails, the diagnostic's `message` is the pipeline's own error, read from its event log: `MSN906`, `MSN907` or `MSN908`, each exiting 2. A pipeline retries a failed update once, so an error a retry can't fix is reported in about a minute. When no pipeline error can be read, Mason reports `MSN904` with the Databricks CLI's last lines.
