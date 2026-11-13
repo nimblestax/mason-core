@@ -144,6 +144,7 @@ Rule IDs are `MSN` plus three digits. An ID never changes meaning, and a retired
 | [`MSN913`](rules/msn913.md) | `no-databricks-cli-for-platform` | Databricks publishes no CLI for this operating system and architecture. |
 | [`MSN914`](rules/msn914.md) | `skills-folder-ignored` | `mason init` wrote Mason Skills into a folder Git ignores, such as `.claude/`. |
 | [`MSN915`](rules/msn915.md) | `skill-edited` | `mason skills update` found a Mason Skill edited since Mason wrote it. |
+| [`MSN916`](rules/msn916.md) | `unknown-example` | `mason init --example` names an example Mason doesn't ship. |
 
 `mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project, and so does every `MSN3xx` rule, which `mason validate --platform` finds in the workspace. A diagnostic with `severity` set to `warning`, such as `MSN129`, is reported and the command still exits 0.
 

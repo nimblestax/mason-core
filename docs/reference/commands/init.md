@@ -13,7 +13,7 @@ $ mason init [<folder>] [OPTIONS]
 
 | Argument | Meaning |
 | --- | --- |
-| `folder` | The folder to create the project in, made if missing. Its name is the project's name. |
+| `folder` | The folder to create the project in, made if missing. Its name is the project's name, except for an example, which keeps its own. |
 
 ## Options
 
@@ -23,6 +23,7 @@ $ mason init [<folder>] [OPTIONS]
 | `--host` | text | `https://your-workspace.cloud.databricks.com` | Workspace URL. |
 | `--naming-style` | `domain-catalogs`, `layer-catalogs`, `environment-catalogs` |  | Where tables live. Asked at a terminal when left out; otherwise domain-catalogs. |
 | `--skills` | `all`, `none` | `all` | Mason Skills to write for coding agents, into `.agents/skills/` and `.claude/skills/`. |
+| `--example` | text |  | Write an example project with its sample data, such as `kettle`, instead of a new one. It keeps the Naming Style it ships with. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
 ## Exit codes
@@ -45,3 +46,6 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | `schemas` | array of string | The schemas to create before deploying, as `catalog.schema`. |
 | `skills` | array of string | The Mason Skill folders written. |
 | `skills_left_alone` | array of string | The Mason Skill folders that already existed, which were left as they were. |
+| `volumes` | array of string | The Volumes the Sources read in dev, as `catalog.schema.volume`, to create before deploying. |
+| `example` | string or null | The example written, or `null` for a new project. |
+| `uploads` | array of string | With `--example`, the commands that upload day 1's data to each Source's path in dev. |

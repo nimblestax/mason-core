@@ -5,11 +5,20 @@ description: The row-level rules a source's silver is checked against, which row
 
 An expectation is a rule on one row of a source's silver table. A row meets it only when its `expect` condition is true. False or NULL is a failure.
 
-```yaml
+In Kettle, the tea shop that `mason init --example kettle` writes, every customer needs an email:
+
+```yaml title="domains/sales/sources/customers.yaml"
+# yaml-language-server: $schema=../../../.mason/schemas/source.v1.json
+kind: source
+version: 1
+path: /Volumes/{env}_sales/bronze/landing/customers
+format: json
 silver:
-  keys: [account_id]
-  sequence_by: ts
-  delete_when: op = 'D'
+  keys: [customer_id]
+  sequence_by: updated_at
+  scd: 2
+  delete_when: operation = 'DELETE'
+  export: true
   expectations:
     - name: has_email
       expect: email IS NOT NULL
@@ -29,7 +38,7 @@ On an append source, every row is checked.
 
 On an upsert source, which has `keys`, every change is checked, except a delete. A row where `delete_when` is true skips every expectation. It always reaches silver, where it deletes its key, and it never goes to quarantine. A delete often carries only its key, so a rule on any other column would fail it. If that sent it to quarantine, silver would keep a row the source had deleted, and nothing would say so.
 
-So in the example above, `{"account_id": 2, "op": "D", "ts": 2}` deletes account 2, even though it has no `email`.
+So Kettle's day 2 data deletes customer 12 with `{"customer_id": 12, "operation": "DELETE", "updated_at": "2026-03-03T10:00:00"}`, even though it has no `email`.
 
 A delete with a bad or NULL key still reaches silver, where it matches no row and changes nothing. To catch bad keys in deletes, test the silver table.
 

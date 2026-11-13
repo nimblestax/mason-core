@@ -72,6 +72,9 @@ def test_validate_prints_an_envelope_with_the_rule_id_and_exits_1(project: Path)
                     ".claude/skills/mason-add-source",
                 ],
                 "skills_left_alone": [],
+                "volumes": ["dev_sales.bronze.landing"],
+                "example": None,
+                "uploads": [],
             },
         ),
         (["validate"], {}),
@@ -305,6 +308,7 @@ REGISTERED_RULES = {
     "MSN913": "no-databricks-cli-for-platform",
     "MSN914": "skills-folder-ignored",
     "MSN915": "skill-edited",
+    "MSN916": "unknown-example",
 }
 
 
@@ -480,13 +484,14 @@ def test_every_project_rule_reports_a_message_and_a_fix_and_exits_1(
 
 
 def test_a_new_rule_must_be_tested_here():
-    """The tests above, and the refresh failure, init folder, pinned CLI, platform check and
-    skills tests, cover these by name. A new rule joins one."""
+    """The tests above, and the refresh failure, init folder, pinned CLI, platform check,
+    skills and Kettle tests, cover these by name. A new rule joins one."""
     usage_and_environment = {"MSN901", "MSN902", "MSN903", "MSN904", "MSN905", "MSN909"}
     refresh_failures = {"MSN906", "MSN907", "MSN908"}
     pinned_cli_failures = {"MSN910", "MSN911", "MSN912", "MSN913"}
     platform_checks = {"MSN301", "MSN302"}
     skills = {"MSN129", "MSN914", "MSN915"}
+    examples = {"MSN916"}
 
     assert set(RULES) == (
         set(INVALID_PROJECTS)
@@ -495,6 +500,7 @@ def test_a_new_rule_must_be_tested_here():
         | pinned_cli_failures
         | platform_checks
         | skills
+        | examples
     )
 
 

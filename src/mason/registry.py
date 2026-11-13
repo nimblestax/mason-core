@@ -944,4 +944,13 @@ RULES = {
         fix="Move your edit into a skill of your own, outside the `mason-*` folders, and run"
         " `mason skills update` again. To replace the edit, run `mason skills update --force`.",
     ),
+    "MSN916": Rule(
+        "unknown-example",
+        checks="`mason init --example` names an example Mason doesn't ship.",
+        why="`mason init --example` writes one of the example projects that ship inside Mason,"
+        " so the example always matches the Mason you have installed. The diagnostic lists the"
+        " examples there are. It exits 2, because the command line needs a change.",
+        example=Example(command="mason init --example teapot"),
+        fix="Name an example the diagnostic lists, such as `mason init --example kettle`.",
+    ),
 }

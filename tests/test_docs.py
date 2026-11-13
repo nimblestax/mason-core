@@ -50,6 +50,30 @@ def docs_problems(docs: Path) -> list[str]:
     return problems
 
 
+# A fenced block whose info string carries `title="<path>"` shows that file from Kettle.
+TITLED_BLOCK = re.compile(
+    r'^```\w*[^\n]*\btitle="([^"]+)"[^\n]*\n(.*?)^```', re.DOTALL | re.MULTILINE
+)
+
+
+def snippet_problems(docs: Path, kettle: Path) -> list[str]:
+    """Each block titled with a file path that isn't that file in Kettle, word for word."""
+    problems = []
+    for page in sorted(docs.rglob("*.md")):
+        name = page.relative_to(docs).as_posix()
+        for path, shown in TITLED_BLOCK.findall(page.read_text()):
+            file = kettle / path
+            if not file.is_file():
+                problems.append(
+                    f"{name}: the block titled {path} is for a file Kettle doesn't have"
+                )
+            elif file.read_text() != shown:
+                problems.append(
+                    f"{name}: the block titled {path} doesn't match that file in Kettle"
+                )
+    return problems
+
+
 DOCS = Path(__file__).parent.parent / "docs"
 
 
@@ -155,4 +179,35 @@ def test_a_figure_lives_in_figures(tmp_path: Path):
 
     assert docs_problems(tmp_path) == [
         "concepts/deferral.md: shows stray.svg, which isn't a Figure in figures/"
+    ]
+
+
+KETTLE = Path(__file__).parent.parent / "src/mason/examples/kettle"
+
+
+def test_every_block_titled_with_a_file_path_matches_that_file_in_kettle():
+    assert snippet_problems(DOCS, KETTLE) == []
+
+
+def test_a_titled_block_that_differs_from_kettle_is_a_problem(tmp_path: Path):
+    write(tmp_path / "kettle/domains/sales/seeds/regions.csv", "region_code,region_name\n")
+    write(
+        tmp_path / "docs/guides/add-a-seed.md",
+        PAGE
+        + '```csv title="domains/sales/seeds/regions.csv"\nregion_code,name\n```\n\n'
+        + '```csv title="domains/sales/seeds/regions.csv"\nregion_code,region_name\n```\n',
+    )
+
+    assert snippet_problems(tmp_path / "docs", tmp_path / "kettle") == [
+        "guides/add-a-seed.md: the block titled domains/sales/seeds/regions.csv"
+        " doesn't match that file in Kettle"
+    ]
+
+
+def test_a_titled_block_for_a_file_kettle_lacks_is_a_problem(tmp_path: Path):
+    (tmp_path / "kettle").mkdir()
+    write(tmp_path / "docs/index.md", PAGE + '```yaml title="domains/tea.yaml"\nkind: seed\n```\n')
+
+    assert snippet_problems(tmp_path / "docs", tmp_path / "kettle") == [
+        "index.md: the block titled domains/tea.yaml is for a file Kettle doesn't have"
     ]

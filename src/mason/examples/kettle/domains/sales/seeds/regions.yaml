@@ -1,0 +1,7 @@
+# yaml-language-server: $schema=../../../.mason/schemas/seed.v1.json
+kind: seed
+version: 1
+file: regions.csv
+columns:
+  region_code: STRING
+  region_name: STRING
