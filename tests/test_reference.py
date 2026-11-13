@@ -6,14 +6,15 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+import typer
 from test_docs import front_matter
 from typer.testing import CliRunner
 
 from mason import reference
-from mason.cli import PASSED_THROUGH, app, every_command
+from mason.cli import GROUPS, PASSED_THROUGH, app, every_command
 from mason.diagnostics import EXIT_CODES
 from mason.kinds import KINDS, latest_schema
-from mason.registry import RULES, Example
+from mason.registry import RULES, SERIES, Example
 
 DOCS = Path(__file__).parent.parent / "docs"
 
@@ -192,17 +193,22 @@ def test_every_command_gets_a_page_listing_its_options_and_exit_codes(tmp_path: 
     reference.write(tmp_path)
 
     for name, registered in commands().items():
-        text = (tmp_path / f"reference/commands/{reference.page_name(name)}.md").read_text()
+        file, _, section = reference.page_link(name).partition("#")
+        text = whole = (tmp_path / f"reference/commands/{file}").read_text()
         page = front_matter(text)
-        assert page["title"] == f"mason {name}"
-        assert page["description"] == registered.help
         assert page["generated"] is True
+        if section:  # A subcommand is a section of its group's page.
+            text = text.split(f"\n## {section}\n")[1].split("\n## ")[0]
+            assert text.startswith(f"\n{registered.help}\n")
+        else:
+            assert page["title"] == f"mason {name}"
+            assert page["description"] == registered.help
         if name in PASSED_THROUGH:
             continue  # Its arguments and exit codes are the Databricks CLI's.
         for parameter in registered.params:
             assert f"`{parameter.opts[0]}`" in text, f"{name} {parameter.opts[0]}"
         for code, meaning in EXIT_CODES.items():
-            assert f"| {code} | {meaning} |" in text
+            assert f"| {code} | {meaning} |" in whole
 
 
 def test_the_databricks_page_says_its_arguments_and_exit_code_are_the_clis(tmp_path: Path):
@@ -234,14 +240,14 @@ def test_a_command_page_documents_every_field_of_its_json_result(
 
     envelope = json.loads(CliRunner().invoke(app, [*command, "--json"]).stdout)
 
-    page = "skills-update" if command[0] == "skills" else command[0]
+    page = command[0]
     text = (tmp_path / f"docs/reference/commands/{page}.md").read_text()
     assert f"`{envelope['schema']}`" in text
     for field in envelope["result"]:
         assert f"| `{field}` |" in text, field
 
 
-def test_the_json_page_documents_the_envelope_and_links_every_command_and_rule(
+def test_the_json_page_documents_the_envelope_and_links_every_command_and_the_rules(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     reference.write(tmp_path / "docs")
@@ -258,9 +264,8 @@ def test_the_json_page_documents_the_envelope_and_links_every_command_and_rule(
     for field in [*envelope, *envelope["diagnostics"][0]]:
         assert f"| `{field}` |" in text, field
     for name in commands():
-        assert f"(commands/{reference.page_name(name)}.md)" in text, name
-    for code in RULES:
-        assert f"(rules/{code.lower()}.md)" in text, code
+        assert f"(commands/{reference.page_link(name)})" in text, name
+    assert "(rules/index.md)" in text
     assert "\n## Rule IDs\n" in text
 
 
@@ -280,3 +285,56 @@ def test_the_platform_page_lists_each_naming_style_as_a_choice(tmp_path: Path):
         "one of `domain-catalogs`, `layer-catalogs`, `environment-catalogs`",
         "yes",
     ]
+
+
+def index_rows(page: str) -> list[tuple[str, str, str]]:
+    """Each Rule row of the Rules index, as (series heading, code, linked page)."""
+    rows, heading = [], ""
+    for line in page.splitlines():
+        if line.startswith("## "):
+            heading = line.removeprefix("## ")
+        found = re.match(r"\| \[`(MSN\d{3})`\]\(([^)]+)\) \|", line)
+        if found:
+            rows.append((heading, found[1], found[2]))
+    return rows
+
+
+def test_the_rules_index_lists_every_rule_once_under_its_series_linking_its_page(
+    tmp_path: Path,
+):
+    reference.write(tmp_path)
+
+    index = (tmp_path / "reference/rules/index.md").read_text()
+    assert front_matter(index)["generated"] is True
+    rows = index_rows(index)
+    assert sorted(code for _, code, _ in rows) == sorted(RULES)
+    for heading, code, page in rows:
+        assert heading == f"`{code[:4]}xx` {SERIES[code[:4]]}", code
+        assert (tmp_path / "reference/rules" / page).is_file(), page
+
+
+def test_every_rule_belongs_to_a_series_with_a_heading():
+    assert {code[:4] for code in RULES} <= set(SERIES)
+
+
+@pytest.mark.parametrize("group", GROUPS)
+def test_a_command_group_gets_one_page_with_a_section_per_subcommand(tmp_path: Path, group: str):
+    reference.write(tmp_path)
+
+    text = (tmp_path / f"reference/commands/{group}.md").read_text()
+    page = front_matter(text)
+    registered: Any = typer.main.get_command(app)
+    assert page["title"] == f"mason {group}"
+    assert page["description"] == registered.commands[group].help
+    for inner in registered.commands[group].commands:
+        assert f"\n## {inner}\n" in text, inner
+        assert f"$ mason {group} {inner}" in text, inner
+        assert not (tmp_path / f"reference/commands/{group}-{inner}.md").exists()
+
+
+def test_writing_the_reference_twice_gives_the_same_pages(tmp_path: Path):
+    reference.write(tmp_path / "once")
+    reference.write(tmp_path / "twice")
+    reference.write(tmp_path / "twice")
+
+    assert generated_pages(tmp_path / "twice") == generated_pages(tmp_path / "once")

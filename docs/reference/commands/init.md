@@ -26,14 +26,6 @@ $ mason init [<folder>] [OPTIONS]
 | `--example` | text |  | Write an example project with its sample data, such as `kettle`, instead of a new one. It keeps the Naming Style it ships with. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
-## Exit codes
-
-| Code | Meaning |
-| --- | --- |
-| 0 | Clean |
-| 1 | Rule failures: the project needs a change |
-| 2 | Usage or environment error: the command line or the machine needs a change |
-
 ## JSON result
 
 With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.init/1`. When it succeeds, `result` is:
@@ -49,3 +41,11 @@ With `--json`, it prints the [envelope](../json-output.md) with `schema` set to 
 | `volumes` | array of string | The Volumes the Sources read in dev, as `catalog.schema.volume`, to create before deploying. |
 | `example` | string or null | The example written, or `null` for a new project. |
 | `uploads` | array of string | With `--example`, the commands that upload day 1's data to each Source's path in dev. |
+
+## Exit codes
+
+| Code | Meaning |
+| --- | --- |
+| 0 | Clean |
+| 1 | Rule failures: the project needs a change |
+| 2 | Usage or environment error: the command line or the machine needs a change |

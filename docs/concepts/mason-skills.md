@@ -52,5 +52,5 @@ Updated these Mason Skills. Commit them:
 
 ## Next steps
 
-- [`mason skills update`](../reference/commands/skills-update.md) lists its options and its JSON result.
+- [`mason skills update`](../reference/commands/skills.md#update) lists its options and its JSON result.
 - [`mason init`](../reference/commands/init.md) lists `--skills` with its other options.

@@ -18,6 +18,12 @@ $ mason validate [OPTIONS]
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
+## JSON result
+
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.validate/1`. When it succeeds, `result` is:
+
+Empty: `validate` reports what it finds as diagnostics.
+
 ## Exit codes
 
 | Code | Meaning |
@@ -25,9 +31,3 @@ $ mason validate [OPTIONS]
 | 0 | Clean |
 | 1 | Rule failures: the project needs a change |
 | 2 | Usage or environment error: the command line or the machine needs a change |
-
-## JSON result
-
-With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.validate/1`. When it succeeds, `result` is:
-
-Empty: `validate` reports what it finds as diagnostics.
