@@ -9,15 +9,16 @@ from pathlib import Path
 from types import UnionType
 from typing import Any, get_args, get_origin, get_type_hints
 
+import typer
 import yaml
 from pydantic import BaseModel, TypeAdapter
 from typer.core import TyperArgument, TyperCommand, TyperOption
 
 from mason import output
-from mason.cli import PASSED_THROUGH, callbacks, every_command
+from mason.cli import GROUPS, PASSED_THROUGH, app, callbacks, every_command
 from mason.diagnostics import EXIT_CODES, Diagnostic, error
 from mason.kinds import KINDS, latest_schema
-from mason.registry import RULES, Rule
+from mason.registry import RULES, SERIES, Rule
 
 WAY = "https://nimblestax.com/way"
 LANGUAGES = {".yaml": "yaml", ".yml": "yaml", ".sql": "sql", ".csv": "csv", ".md": "markdown"}
@@ -34,6 +35,7 @@ def write(docs: Path) -> None:
     rules.mkdir(parents=True, exist_ok=True)
     for code, rule in RULES.items():
         (rules / f"{code.lower()}.md").write_text(_rule_page(code, rule))
+    (rules / "index.md").write_text(_rules_index())
     kinds = docs / "reference/kinds"
     kinds.mkdir(parents=True, exist_ok=True)
     for kind in KINDS:
@@ -41,20 +43,23 @@ def write(docs: Path) -> None:
 
     commands = docs / "reference/commands"
     commands.mkdir(parents=True, exist_ok=True)
-    registered_commands = every_command()
     behind = callbacks()
-    for name, registered in registered_commands.items():
+    top: Any = typer.main.get_command(app)
+    for name, registered in top.commands.items():
         if name in PASSED_THROUGH:
             page = _passed_through_page(name, registered)
+        elif name in GROUPS:
+            page = _group_page(name, registered, behind)
         else:
             page = _command_page(name, registered, _results(behind[name]))
-        (commands / f"{page_name(name)}.md").write_text(page)
-    (docs / "reference/json-output.md").write_text(_json_page(registered_commands))
+        (commands / f"{name}.md").write_text(page)
+    (docs / "reference/json-output.md").write_text(_json_page(every_command()))
 
 
-def page_name(command: str) -> str:
-    """`skills update` is documented on `skills-update.md`."""
-    return command.replace(" ", "-")
+def page_link(command: str) -> str:
+    """The page that documents a command: `skills update` is a section of `skills.md`."""
+    group, _, inner = command.partition(" ")
+    return f"{group}.md#{inner}" if inner else f"{command}.md"
 
 
 def _kind_page(kind: str) -> str:
@@ -147,7 +152,7 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
         *_shape(TypeAdapter(Diagnostic).json_schema()),
         "## Results\n\nEach command's page describes its `result`.\n",
         "\n".join(
-            f"- [`mason {name}`](commands/{page_name(name)}.md): {registered.help}"
+            f"- [`mason {name}`](commands/{page_link(name)}): {registered.help}"
             for name, registered in commands.items()
             if name not in PASSED_THROUGH
         )
@@ -157,15 +162,8 @@ def _json_page(commands: dict[str, TyperCommand]) -> str:
             ["Code", "Meaning"], [f"| {code} | {meaning} |" for code, meaning in EXIT_CODES.items()]
         ),
         "## Rule IDs\n\nRule IDs are `MSN` plus three digits. An ID never changes meaning, and a"
-        " retired ID is never reused. Each Rule's page says what it checks, why, an example that"
-        " fails and the fix.\n",
-        _table(
-            ["Rule", "Name", "Meaning"],
-            [
-                f"| [`{code}`](rules/{code.lower()}.md) | `{rule.name}` | {rule.checks} |"
-                for code, rule in RULES.items()
-            ],
-        ),
+        " retired ID is never reused. The [Rules index](rules/index.md) lists every Rule by"
+        " series.\n",
         "`mason schema <unknown kind>` reports `MSN102` and exits 2, because the mistake is on"
         " the command line. Every `MSN1xx` and `MSN2xx` rule exits 1 when found in a project,"
         " and so does every `MSN3xx` rule, which `mason validate --platform` finds in the"
@@ -189,6 +187,25 @@ def _results(callback: Any) -> list[type[BaseModel]]:
 
 
 def _command_page(name: str, registered: TyperCommand, results: list[type[BaseModel]]) -> str:
+    sections = [*_command_sections(name, registered, results, "##"), _exit_codes()]
+    return _front_matter(f"mason {name}", registered.help or "") + "\n" + "\n".join(sections)
+
+
+def _group_page(group: str, registered: Any, behind: dict[str, Any]) -> str:
+    """One page for a command with subcommands, with a section, and so an anchor, for each."""
+    sections = []
+    for inner, command in registered.commands.items():
+        name = f"{group} {inner}"
+        sections.append(f"## {inner}\n\n{command.help}\n")
+        sections += _command_sections(name, command, _results(behind[name]), "###")
+    sections.append(_exit_codes())
+    return _front_matter(f"mason {group}", registered.help or "") + "\n" + "\n".join(sections)
+
+
+def _command_sections(
+    name: str, registered: TyperCommand, results: list[type[BaseModel]], heading: str
+) -> list[str]:
+    """A command's usage, arguments, options and JSON result, under headings at `heading`."""
     arguments = [p for p in registered.params if isinstance(p, TyperArgument)]
     options = [p for p in registered.params if isinstance(p, TyperOption)]
     shown = [f"<{p.name}>" if p.required else f"[<{p.name}>]" for p in arguments]
@@ -196,18 +213,23 @@ def _command_page(name: str, registered: TyperCommand, results: list[type[BaseMo
     sections = [f"```console\n$ {usage}\n```\n"]
     if arguments:
         rows = [f"| `{p.name}` | {getattr(p, 'help', '')} |" for p in arguments]
-        sections.append("## Arguments\n\n" + _table(["Argument", "Meaning"], rows))
+        sections.append(f"{heading} Arguments\n\n" + _table(["Argument", "Meaning"], rows))
     rows = [f"| `{p.opts[0]}` | {_takes(p)} | {_default(p)} | {p.help} |" for p in options]
-    sections.append("## Options\n\n" + _table(["Option", "Takes", "Default", "Meaning"], rows))
-    rows = [f"| {code} | {meaning} |" for code, meaning in EXIT_CODES.items()]
-    sections.append("## Exit codes\n\n" + _table(["Code", "Meaning"], rows))
+    columns = ["Option", "Takes", "Default", "Meaning"]
+    sections.append(f"{heading} Options\n\n" + _table(columns, rows))
     sections.append(
-        f"## JSON result\n\nWith `--json`, it prints the [envelope](../json-output.md) with"
-        f" `schema` set to `mason.{name.replace(' ', '.')}/1`. When it succeeds, `result` is:\n"
+        f"{heading} JSON result\n\nWith `--json`, it prints the [envelope](../json-output.md)"
+        f" with `schema` set to `mason.{name.replace(' ', '.')}/1`. When it succeeds, `result`"
+        " is:\n"
     )
     for result in results:
         sections += _shape(result.model_json_schema(by_alias=True))
-    return _front_matter(f"mason {name}", registered.help or "") + "\n" + "\n".join(sections)
+    return sections
+
+
+def _exit_codes() -> str:
+    rows = [f"| {code} | {meaning} |" for code, meaning in EXIT_CODES.items()]
+    return "## Exit codes\n\n" + _table(["Code", "Meaning"], rows)
 
 
 def _passed_through_page(name: str, registered: TyperCommand) -> str:
@@ -265,6 +287,24 @@ def _json_type(field: dict[str, Any]) -> str:
 def _table(columns: list[str], rows: list[str]) -> str:
     header = f"| {' | '.join(columns)} |\n|{' --- |' * len(columns)}"
     return f"{header}\n" + "\n".join(rows) + "\n"
+
+
+def _rules_index() -> str:
+    sections = [
+        "A Rule's ID is `MSN` plus three digits, and its first digit is its series. Each Rule's"
+        " page says what it checks, why, an example that fails and the fix.\n"
+    ]
+    for series, covers in SERIES.items():
+        rows = [
+            f"| [`{code}`]({code.lower()}.md) | `{rule.name}` | {rule.checks} |"
+            for code, rule in sorted(RULES.items())
+            if code.startswith(series)
+        ]
+        if rows:
+            table = _table(["Rule", "Name", "What it checks"], rows)
+            sections.append(f"## `{series}xx` {covers}\n\n{table}")
+    description = "Every Rule Mason checks, by series, with what each one checks."
+    return _front_matter("Rules", description) + "\n" + "\n".join(sections)
 
 
 def _rule_page(code: str, rule: Rule) -> str:

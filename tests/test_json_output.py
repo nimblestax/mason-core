@@ -505,13 +505,15 @@ def test_a_new_rule_must_be_tested_here():
 
 
 def test_the_docs_state_every_exit_code_and_every_rule():
-    docs = (Path(__file__).parent.parent / "docs/reference/json-output.md").read_text()
+    reference = Path(__file__).parent.parent / "docs/reference"
+    docs = (reference / "json-output.md").read_text()
+    index = (reference / "rules/index.md").read_text()
 
     assert "| 0 | Clean" in docs
     assert "| 1 | Rule failures" in docs
     assert "| 2 | Usage or environment error" in docs
     for code, rule in RULES.items():
-        assert f"| [`{code}`](rules/{code.lower()}.md) | `{rule.name}` |" in docs
+        assert f"| [`{code}`]({code.lower()}.md) | `{rule.name}` |" in index
 
 
 def test_help_states_the_exit_codes():

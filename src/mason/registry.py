@@ -70,6 +70,15 @@ INVOICES_AS_JSON = (
     "format: json\n"
 )
 
+# What each series of Rules covers, by the first four characters of its IDs.
+# The Rules index has one table per series, under this heading.
+SERIES = {
+    "MSN1": "Config files",
+    "MSN2": "SQL and reads between tables",
+    "MSN3": "The workspace a project deploys to",
+    "MSN9": "The command line and running against Databricks",
+}
+
 # Append only. An ID never changes meaning, and a retired rule stays here so its ID isn't reused.
 RULES = {
     "MSN101": Rule(
