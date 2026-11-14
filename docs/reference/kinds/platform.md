@@ -2,10 +2,10 @@
 title: Platform Contract
 description: The shared facts about a project's platform.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
-A file with `kind: platform`, at version 2. `mason schema platform` prints the same fields from the Mason you installed.
+A file with `kind: platform`, at version 2. `brickie schema platform` prints the same fields from the Brickie you installed.
 
 ## Fields
 
@@ -16,8 +16,8 @@ A file with `kind: platform`, at version 2. `mason schema platform` prints the s
 | `name` | string | yes |  | The project's name. |
 | `environments` | map of name to object | yes |  | Settings per Environment. |
 | `environments.<name>.host` | string | no | `null` | Workspace URL. Required on the Development Environment; every other Environment uses its host unless it sets its own. |
-| `environments.<name>.role` | one of `development`, `production` | no | `null` | What Mason uses the Environment for. Exactly one Environment is `development`, the one people work in: commands that read use it by default, and every Environment without a `host` uses its host. At most one is `production`, the one kept isolated: schedules run in it by default. Any other Environment is a stage, in the order CI runs them. |
-| `environments.<name>.default` | boolean | no | `false` | Whether commands that read use this Environment when `--env` is left out. At most one Environment sets it; with none, the Development Environment is the default. `mason deploy` always needs `--env`. |
+| `environments.<name>.role` | one of `development`, `production` | no | `null` | What Brickie uses the Environment for. Exactly one Environment is `development`, the one people work in: commands that read use it by default, and every Environment without a `host` uses its host. At most one is `production`, the one kept isolated: schedules run in it by default. Any other Environment is a stage, in the order CI runs them. |
+| `environments.<name>.default` | boolean | no | `false` | Whether commands that read use this Environment when `--env` is left out. At most one Environment sets it; with none, the Development Environment is the default. `brickie deploy` always needs `--env`. |
 | `environments.<name>.schedule` | object | no | `null` | When the Environment's Job runs on its own. Left out, it runs only on each deploy. |
 | `environments.<name>.schedule.cron` | string | yes |  | A Quartz cron expression, such as `0 0 6 * * ?` for 6am every day. |
 | `environments.<name>.schedule.timezone` | string | no | `UTC` | The time zone `cron` is read in, such as `Australia/Sydney`. |

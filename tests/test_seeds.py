@@ -8,8 +8,8 @@ import sqlglot
 import yaml
 from typer.testing import CliRunner
 
-from mason.cli import app
-from mason.kinds.seed import _empty_filter
+from brickie.cli import app
+from brickie.kinds.seed import _empty_filter
 
 runner = CliRunner()
 
@@ -24,7 +24,7 @@ columns:
 """
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -41,13 +41,13 @@ def declare_seed(project: Path, csv: str, config: str = CONFIG) -> None:
 
 
 def compiled(project: Path) -> str:
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
     assert result.exit_code == 0, result.output
     return (project / COMPILED).read_text()
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -55,7 +55,7 @@ def failures(project: Path) -> list[dict]:
 def test_a_valid_seed_validates_and_lands_in_its_domains_silver(project: Path):
     declare_seed(project, "code,vat_rate\nAU,0.10\nNZ,0.15\n")
 
-    assert mason(project, "validate").exit_code == 0
+    assert brickie(project, "validate").exit_code == 0
 
     code = compiled(project)
     assert (
@@ -84,9 +84,9 @@ def test_a_gold_model_reads_a_seed_through_a_logical_name(project: Path):
     gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.silver.countries\n")
 
-    assert mason(project, "validate").exit_code == 0
+    assert brickie(project, "validate").exit_code == 0
 
-    mason(project, "compile")
+    brickie(project, "compile")
     assert (
         "FROM ${catalog_sales_silver}.${schema_sales_silver}.countries"
         in (project / "build/src/sales/gold/fct_orders.sql").read_text()
@@ -109,7 +109,7 @@ def test_a_domain_with_only_seeds_still_gets_a_pipeline_that_runs_before_gold(pr
     gold = project / "domains/sales/models/gold/fct_orders.sql"
     gold.write_text("SELECT code FROM sales.silver.countries\n")
 
-    assert mason(project, "compile").exit_code == 0
+    assert brickie(project, "compile").exit_code == 0
 
     bundle = yaml.safe_load((project / "build/databricks.yaml").read_text())
     assert "sales_ingest" in bundle["resources"]["pipelines"]
@@ -181,12 +181,12 @@ def test_a_value_within_its_declared_type_is_accepted(project: Path, sql_type: s
     config = f"kind: seed\nversion: 1\nfile: countries.csv\ncolumns:\n  value: {sql_type}\n"
     declare_seed(project, f"value\n{value}\n", config)
 
-    result = mason(project, "validate")
+    result = brickie(project, "validate")
 
     assert result.exit_code == 0, result.output
 
 
-def test_a_type_mason_cant_check_fails_validate_and_names_the_ones_it_can(project: Path):
+def test_a_type_brickie_cant_check_fails_validate_and_names_the_ones_it_can(project: Path):
     declare_seed(project, "code,vat_rate\nAU,0.10\n", CONFIG.replace("STRING", "VARCAHR"))
 
     [diagnostic] = failures(project)
@@ -315,7 +315,7 @@ def test_values_stay_literal_in_generated_sql(project: Path, value: str, literal
 def test_a_value_that_looks_like_a_placeholder_prints_for_an_environment(project: Path):
     declare_seed(project, "code,vat_rate\n${price},0.10\n")
 
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
 

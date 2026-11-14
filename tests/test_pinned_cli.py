@@ -1,4 +1,4 @@
-"""Mason runs its own pinned Databricks CLI, downloaded once and checked against its checksum."""
+"""Brickie runs its own pinned Databricks CLI, downloaded once and checked against its checksum."""
 
 import hashlib
 import io
@@ -17,8 +17,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason import cli
-from mason.deploy import databricks_cli_release, pinned_cli
+from brickie import cli
+from brickie.deploy import databricks_cli_release, pinned_cli
 
 runner = CliRunner()
 
@@ -75,7 +75,7 @@ def releases() -> Iterator[Releases]:
 
 @pytest.fixture
 def pinned(monkeypatch: pytest.MonkeyPatch, releases: Releases, tmp_path: Path) -> Iterator[Path]:
-    """Points Mason at the fake releases, with this archive's checksum pinned for this machine."""
+    """Points Brickie at the fake releases, with this archive's checksum pinned for this machine."""
     calls = tmp_path / "calls"
     releases.archive = archive(pinned_cli.binary_name(), fake_cli(calls))
     checksum = hashlib.sha256(releases.archive).hexdigest()
@@ -121,7 +121,7 @@ def test_an_archive_whose_checksum_does_not_match_is_refused_and_nothing_runs(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN910"
+    assert diagnostic["rule"] == "BRK910"
     assert not pinned.exists()
     assert not list((pinned.parent / "cache").rglob(pinned_cli.binary_name()))
 
@@ -171,7 +171,7 @@ def own_cli(folder: Path, version: str) -> Path:
     return script
 
 
-def test_a_cli_named_by_mason_databricks_cli_at_the_minimum_is_used_with_no_download(
+def test_a_cli_named_by_brickie_databricks_cli_at_the_minimum_is_used_with_no_download(
     pinned: Path, releases: Releases, project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(own_cli(tmp_path, pinned_cli.MINIMUM)))
@@ -183,7 +183,7 @@ def test_a_cli_named_by_mason_databricks_cli_at_the_minimum_is_used_with_no_down
     assert "bundle deploy --target dev" in (tmp_path / "own-calls").read_text()
 
 
-def test_a_cli_named_by_mason_databricks_cli_below_the_minimum_fails_and_nothing_runs(
+def test_a_cli_named_by_brickie_databricks_cli_below_the_minimum_fails_and_nothing_runs(
     pinned: Path, releases: Releases, project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(own_cli(tmp_path, "0.200.0")))
@@ -192,14 +192,14 @@ def test_a_cli_named_by_mason_databricks_cli_below_the_minimum_fails_and_nothing
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN911"
+    assert diagnostic["rule"] == "BRK911"
     assert "0.200.0" in diagnostic["message"]
     assert pinned_cli.MINIMUM in diagnostic["message"]
     assert (tmp_path / "own-calls").read_text().splitlines() == ["--version"]
     assert releases.requests == []
 
 
-def test_a_cli_named_by_mason_databricks_cli_that_does_not_exist_fails(
+def test_a_cli_named_by_brickie_databricks_cli_that_does_not_exist_fails(
     pinned: Path, project: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(tmp_path / "nowhere" / "databricks"))
@@ -208,7 +208,7 @@ def test_a_cli_named_by_mason_databricks_cli_that_does_not_exist_fails(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN903"
+    assert diagnostic["rule"] == "BRK903"
 
 
 def test_a_download_that_fails_says_so_with_a_rule_id(
@@ -220,7 +220,7 @@ def test_a_download_that_fails_says_so_with_a_rule_id(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN912"
+    assert diagnostic["rule"] == "BRK912"
     assert "404" in diagnostic["message"]
     assert not pinned.exists()
 
@@ -234,7 +234,7 @@ def test_a_platform_databricks_publishes_no_cli_for_fails_with_a_rule_id(
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN913"
+    assert diagnostic["rule"] == "BRK913"
     assert pinned_cli.platform_name() in diagnostic["message"]
     assert releases.requests == []
 
@@ -275,7 +275,7 @@ def test_this_release_pins_an_archive_for_every_platform_databricks_publishes(
     assert pinned_cli.binary_name(system) == binary
 
 
-def test_mason_databricks_runs_the_pinned_cli_with_the_arguments_passed_through(
+def test_brickie_databricks_runs_the_pinned_cli_with_the_arguments_passed_through(
     pinned: Path, releases: Releases
 ):
     result = runner.invoke(cli.app, ["databricks", "auth", "describe", "--help", "-p", "x"])
@@ -285,7 +285,7 @@ def test_mason_databricks_runs_the_pinned_cli_with_the_arguments_passed_through(
     assert len(releases.requests) == 1
 
 
-def test_mason_databricks_exits_with_the_clis_exit_code(
+def test_brickie_databricks_exits_with_the_clis_exit_code(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     failing = tmp_path / "databricks"
@@ -298,15 +298,15 @@ def test_mason_databricks_exits_with_the_clis_exit_code(
     assert result.exit_code == 3
 
 
-def test_mason_version_names_the_cli_version_it_runs(pinned: Path, releases: Releases):
+def test_brickie_version_names_the_cli_version_it_runs(pinned: Path, releases: Releases):
     result = runner.invoke(cli.app, ["--version"])
 
     assert result.exit_code == 0, result.output
-    assert result.output == f"mason {version('mason-databricks')}\nDatabricks CLI {PINNED}\n"
+    assert result.output == f"brickie {version('brickie-core')}\nDatabricks CLI {PINNED}\n"
     assert releases.requests == []
 
 
-def test_mason_version_names_the_cli_mason_databricks_cli_points_at(
+def test_brickie_version_names_the_cli_brickie_databricks_cli_points_at(
     pinned: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(own_cli(tmp_path, "1.99.0")))

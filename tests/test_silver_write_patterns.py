@@ -6,8 +6,8 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason.cli import app
-from mason.kinds.source import _delete_when
+from brickie.cli import app
+from brickie.kinds.source import _delete_when
 
 runner = CliRunner()
 
@@ -16,7 +16,7 @@ BRONZE_TABLE = "${catalog_sales_bronze}.${schema_sales_bronze}.orders"
 SILVER_TABLE = "${catalog_sales_silver}.${schema_sales_silver}.orders"
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -32,13 +32,13 @@ def declare_silver(project: Path, block: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
 
 def generated(project: Path) -> str:
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
     assert result.exit_code == 0, result.output
     return (project / "build/src/sales/ingest/orders.sql").read_text()
 
@@ -98,7 +98,7 @@ def test_keys_without_sequence_by_fail_validation_with_a_rule_id(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN110"
+    assert diagnostic["rule"] == "BRK110"
     assert diagnostic["file"] == SOURCE
     assert "sequence_by" in diagnostic["fix"]
 
@@ -118,7 +118,7 @@ def test_an_upsert_field_without_keys_fails_validation_with_a_rule_id(
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN111"
+    assert diagnostic["rule"] == "BRK111"
     assert diagnostic["file"] == SOURCE
     assert f"`silver.{field}`" in diagnostic["message"]
 
@@ -126,7 +126,7 @@ def test_an_upsert_field_without_keys_fails_validation_with_a_rule_id(
 def test_every_upsert_field_without_keys_is_reported_at_once(project: Path):
     declare_silver(project, "silver:\n  sequence_by: updated_at\n  scd: 2\n")
 
-    assert [d["rule"] for d in failures(project)] == ["MSN111", "MSN111"]
+    assert [d["rule"] for d in failures(project)] == ["BRK111", "BRK111"]
 
 
 @pytest.mark.parametrize(
@@ -145,22 +145,22 @@ def test_a_malformed_silver_block_fails_against_the_schema(project: Path, block:
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN106"
+    assert diagnostic["rule"] == "BRK106"
 
 
 def test_compile_stops_on_an_invalid_combination(project: Path):
     declare_silver(project, "silver:\n  keys: [order_id]\n")
 
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
 
     assert result.exit_code == 1
-    assert "MSN110" in result.stdout
+    assert "BRK110" in result.stdout
 
 
 def test_compile_for_an_environment_shows_the_upsert_in_runnable_sql(project: Path):
     declare_silver(project, "silver:\n  keys: [order_id]\n  sequence_by: updated_at\n")
 
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
     assert "AUTO CDC INTO dev_sales.silver.orders\n" in result.stdout
@@ -171,7 +171,7 @@ def test_compile_for_an_environment_shows_the_upsert_in_runnable_sql(project: Pa
 def test_a_valid_upsert_passes_validation(project: Path):
     declare_silver(project, "silver:\n  keys: [order_id]\n  sequence_by: updated_at\n  scd: 2\n")
 
-    assert mason(project, "validate").exit_code == 0
+    assert brickie(project, "validate").exit_code == 0
 
 
 def test_schema_names_the_fields_of_the_silver_block_for_a_person():
@@ -194,7 +194,7 @@ def test_a_delete_when_that_would_break_the_generated_flow_fails_validation(proj
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN118"
+    assert diagnostic["rule"] == "BRK118"
     assert diagnostic["file"] == SOURCE
     assert "`silver.delete_when`" in diagnostic["message"]
 
@@ -218,7 +218,7 @@ def test_a_delete_when_that_isnt_one_condition_on_one_row_says_why(
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN118"
+    assert diagnostic["rule"] == "BRK118"
     assert reason in diagnostic["message"]
     assert diagnostic["fix"]
 
@@ -245,7 +245,7 @@ def test_a_sequence_by_that_isnt_one_expression_on_one_row_fails_validation(
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN119"
+    assert diagnostic["rule"] == "BRK119"
     assert diagnostic["file"] == SOURCE
     assert "`silver.sequence_by`" in diagnostic["message"]
     assert reason in diagnostic["message"]
@@ -264,5 +264,5 @@ def test_a_key_that_isnt_a_column_name_fails_against_the_schema(project: Path, k
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN106"
+    assert diagnostic["rule"] == "BRK106"
     assert "silver.keys" in diagnostic["message"]

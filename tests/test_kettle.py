@@ -10,12 +10,12 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason import cli
-from mason.cli import app
-from mason.names import NAMING_STYLES
+from brickie import cli
+from brickie.cli import app
+from brickie.names import NAMING_STYLES
 
 runner = CliRunner()
-KETTLE = Path(str(files("mason") / "examples" / "kettle"))
+KETTLE = Path(str(files("brickie") / "examples" / "kettle"))
 
 
 def init_kettle(folder: Path, *args: str):
@@ -25,7 +25,7 @@ def init_kettle(folder: Path, *args: str):
 @pytest.mark.parametrize("style", NAMING_STYLES)
 def test_kettle_is_a_valid_project_under_every_naming_style(tmp_path: Path, style: str):
     assert init_kettle(tmp_path).exit_code == 0
-    contract = tmp_path / "mason.platform.yaml"
+    contract = tmp_path / "brickie.platform.yaml"
     contract.write_text(contract.read_text().replace("style: domain-catalogs", f"style: {style}"))
 
     validated = runner.invoke(app, ["validate", "--project", str(tmp_path), "--json"])
@@ -46,7 +46,7 @@ def test_init_writes_the_day_folders_and_prints_what_to_create_and_how_to_upload
         ]
     assert "  Volumes:\n    dev_sales.bronze.landing\n" in result.stdout
     assert (
-        "  mason databricks fs cp --recursive data/day-1/orders"
+        "  brickie databricks fs cp --recursive data/day-1/orders"
         " dbfs:/Volumes/dev_sales/bronze/landing/orders\n"
     ) in result.stdout
 
@@ -67,8 +67,8 @@ def test_an_example_takes_no_naming_style(tmp_path: Path):
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN901"
-    assert not (tmp_path / "mason.platform.yaml").exists()
+    assert diagnostic["rule"] == "BRK901"
+    assert not (tmp_path / "brickie.platform.yaml").exists()
 
 
 def test_at_a_terminal_an_example_asks_no_naming_style(tmp_path: Path, monkeypatch):
@@ -85,7 +85,7 @@ def test_the_host_given_is_written_into_the_platform_contract(tmp_path: Path):
 
     assert (
         "host: https://kettle.cloud.databricks.com\n"
-        in (tmp_path / "mason.platform.yaml").read_text()
+        in (tmp_path / "brickie.platform.yaml").read_text()
     )
 
 
@@ -94,9 +94,9 @@ def test_an_unknown_example_fails_with_a_rule_that_lists_the_examples(tmp_path: 
 
     assert result.exit_code == 2
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN916"
+    assert diagnostic["rule"] == "BRK916"
     assert "kettle" in diagnostic["fix"]
-    assert not (tmp_path / "mason.platform.yaml").exists()
+    assert not (tmp_path / "brickie.platform.yaml").exists()
 
 
 def rows(day: str, source: str) -> list[dict]:
@@ -160,9 +160,9 @@ def test_the_built_wheel_contains_all_of_kettle(tmp_path: Path):
 
     shipped = {name for name in zipfile.ZipFile(wheel).namelist() if "/examples/kettle/" in name}
     expected = {
-        f"mason/examples/kettle/{file.relative_to(KETTLE).as_posix()}"
+        f"brickie/examples/kettle/{file.relative_to(KETTLE).as_posix()}"
         for file in KETTLE.rglob("*")
         if file.is_file()
     }
     assert expected <= shipped
-    assert "mason/examples/kettle/data/day-2/orders/orders-day-2.json" in shipped
+    assert "brickie/examples/kettle/data/day-2/orders/orders-day-2.json" in shipped

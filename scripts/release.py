@@ -1,4 +1,4 @@
-"""Cut a release of Mason, and read its notes from the changelog.
+"""Cut a release of Brickie, and read its notes from the changelog.
 
     release.py tag <version>    tag main as v<version> and push the tag
     release.py notes <version>  print that version's changelog section
@@ -60,7 +60,7 @@ def tag(version: str) -> None:
             f"{CHANGELOG} has lines under ## Unreleased that {version} would leave out."
             f" Rename the section to ## {version}, or move the lines under it."
         )
-    git("tag", "-a", f"v{version}", "-m", f"Mason {version}")
+    git("tag", "-a", f"v{version}", "-m", f"Brickie {version}")
     git("push", "-q", "origin", f"v{version}")
     print(f"Pushed v{version}. The release workflow takes it from here.")
 

@@ -1,12 +1,12 @@
 ---
-title: mason validate
+title: brickie validate
 description: Check config and SQL references. With `--platform`, also check the workspace.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
 ```console
-$ mason validate [OPTIONS]
+$ brickie validate [OPTIONS]
 ```
 
 ## Options
@@ -20,7 +20,7 @@ $ mason validate [OPTIONS]
 
 ## JSON result
 
-With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.validate/1`. When it succeeds, `result` is:
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `brickie.validate/1`. When it succeeds, `result` is:
 
 Empty: `validate` reports what it finds as diagnostics.
 

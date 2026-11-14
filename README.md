@@ -1,8 +1,8 @@
-<h1 align=center><code>mason</code></h1>
+<h1 align=center><code>brickie</code></h1>
 
 <div align=center>
-  <a href=https://github.com/nimblestax/mason-core/actions/workflows/ci.yaml>
-    <img src=https://github.com/nimblestax/mason-core/actions/workflows/ci.yaml/badge.svg alt="build status">
+  <a href=https://github.com/nimblestax/brickie-core/actions/workflows/ci.yaml>
+    <img src=https://github.com/nimblestax/brickie-core/actions/workflows/ci.yaml/badge.svg alt="build status">
   </a>
   <a href=LICENSE>
     <img src=https://img.shields.io/badge/license-Apache%202.0-blue.svg alt="Apache 2.0 license">
@@ -10,9 +10,9 @@
 </div>
 <br>
 
-Mason brings the software development lifecycle to Databricks. Today it covers pipelines, from bronze to gold: config-driven, reviewed in pull requests, tested, and promoted from dev to prod. It grows to cover more of the platform.
+Brickie brings the software development lifecycle to Databricks. Today it covers pipelines, from bronze to gold: config-driven, reviewed in pull requests, tested, and promoted from dev to prod. It grows to cover more of the platform.
 
-**Status:** early development, and below 1.0, so a minor release may need edits to your project. Install it into your project with `uv add --dev mason-databricks`. The Plan shown on [nimblestax.com](https://nimblestax.com) is illustrative: Mason has no Plan command today.
+**Status:** early development, and below 1.0, so a minor release may need edits to your project. Install it into your project with `uv add --dev brickie-core`. The Plan shown on [nimblestax.com](https://nimblestax.com) is illustrative: Brickie has no Plan command today.
 
 A pipeline is YAML and SQL in your repo. A Source says where data lands:
 
@@ -32,10 +32,10 @@ SELECT order_id, amount
 FROM sales.silver.orders
 ```
 
-Mason compiles that for each Environment:
+Brickie compiles that for each Environment:
 
 ```console
-$ mason compile --env dev
+$ brickie compile --env dev
 CREATE OR REFRESH STREAMING TABLE dev_sales.bronze.orders
 TBLPROPERTIES ('pipelines.reset.allowed' = 'false')
 AS SELECT *
@@ -49,23 +49,23 @@ FROM dev_sales.silver.orders
 And it catches mistakes before anything touches a workspace:
 
 ```console
-$ mason validate
-MSN201 domains/sales/models/fct_orders.sql: sales.silver.ordrs isn't a table in this project.
+$ brickie validate
+BRK201 domains/sales/models/fct_orders.sql: sales.silver.ordrs isn't a table in this project.
   Fix: Declare a Source or Gold Model with this name, or correct the Logical Name.
 ```
 
 ## What works today
 
-- `mason init` creates a working project, with GitHub Actions workflows.
-- `mason validate` checks config and SQL references with no workspace. A Model's dependencies come from its SQL, with no list to keep: CTEs, aliases and `STREAM(...)` just work, and anything Mason can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
-- `mason compile` writes generated code, or prints it for one Environment.
-- `mason deploy` deploys to an Environment and refreshes its tables.
-- `mason schema` prints any Kind's fields.
+- `brickie init` creates a working project, with GitHub Actions workflows.
+- `brickie validate` checks config and SQL references with no workspace. A Model's dependencies come from its SQL, with no list to keep: CTEs, aliases and `STREAM(...)` just work, and anything Brickie can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
+- `brickie compile` writes generated code, or prints it for one Environment.
+- `brickie deploy` deploys to an Environment and refreshes its tables.
+- `brickie schema` prints any Kind's fields.
 - Every command has [`--json` output](docs/reference/json-output.md), rule IDs and fixed exit codes.
 
 ## The Nimblestax Way
 
-Mason is built around an opinionated way of building on Databricks. Read the principles at [nimblestax.com/way](https://nimblestax.com/way).
+Brickie is built around an opinionated way of building on Databricks. Read the principles at [nimblestax.com/way](https://nimblestax.com/way).
 
 ## Follow progress
 

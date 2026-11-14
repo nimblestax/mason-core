@@ -6,7 +6,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason.cli import app
+from brickie.cli import app
 
 runner = CliRunner()
 
@@ -16,7 +16,7 @@ SILVER_TABLE = "${catalog_sales_silver}.${schema_sales_silver}.orders"
 QUARANTINE_TABLE = "${catalog_sales_silver}.${schema_sales_silver}.orders_quarantine"
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -32,7 +32,7 @@ def declare_silver(project: Path, block: str) -> None:
 
 
 def generated(project: Path) -> str:
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
     assert result.exit_code == 0, result.output
     return (project / "build/src/sales/ingest/orders.sql").read_text()
 
@@ -65,7 +65,7 @@ AS SELECT
 FROM STREAM({BRONZE_TABLE})
 WHERE NOT (coalesce(amount > 0, false));
 """ in code
-    assert "mason" not in code.lower()
+    assert "brickie" not in code.lower()
 
 
 def test_quarantine_is_the_default_action(project: Path):
@@ -210,7 +210,7 @@ def test_an_upsert_with_no_expectations_still_reads_bronze_directly(project: Pat
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -239,7 +239,7 @@ def test_an_expectation_that_isnt_a_condition_on_one_row_fails_validation_with_a
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN116"
+    assert diagnostic["rule"] == "BRK116"
     assert diagnostic["file"] == SOURCE
     assert "`bad`" in diagnostic["message"]
 
@@ -258,7 +258,7 @@ def test_a_malformed_expectation_fails_against_the_schema(project: Path, rule: s
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN106"
+    assert diagnostic["rule"] == "BRK106"
 
 
 def test_every_environment_runs_the_same_checks_against_its_own_tables(project: Path):
@@ -266,7 +266,7 @@ def test_every_environment_runs_the_same_checks_against_its_own_tables(project: 
         project,
         "silver:\n  expectations:\n    - name: positive_amount\n      expect: amount > 0\n",
     )
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     platform.write_text(
         platform.read_text().replace(
             "environments:\n",
@@ -275,7 +275,7 @@ def test_every_environment_runs_the_same_checks_against_its_own_tables(project: 
     )
     printed = {}
     for env in ("dev", "prod"):
-        result = mason(project, "compile", "--env", env)
+        result = brickie(project, "compile", "--env", env)
         assert result.exit_code == 0, result.output
         printed[env] = result.stdout
 
@@ -292,7 +292,7 @@ def test_a_gold_model_may_read_a_quarantine_table_by_logical_name(project: Path)
     model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text("SELECT * FROM sales.silver.orders_quarantine")
 
-    assert mason(project, "validate").exit_code == 0, mason(project, "validate").output
+    assert brickie(project, "validate").exit_code == 0, brickie(project, "validate").output
 
 
 @pytest.mark.parametrize("kind", ["source", "seed"])
@@ -317,7 +317,7 @@ def test_a_table_named_like_a_quarantine_table_fails_validation_with_a_rule_id(
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN202"
+    assert diagnostic["rule"] == "BRK202"
     assert diagnostic["file"] == clash.relative_to(project).as_posix()
     assert "Quarantine" in diagnostic["message"]
 

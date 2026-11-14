@@ -1,6 +1,6 @@
 [project]
-name = "mason-databricks"
-version = "0.3.0"
+name = "brickie-core"
+version = "0.1.0"
 description = "Bring the software development lifecycle to Databricks pipelines"
 readme = "README.md"
 license = "Apache-2.0"
@@ -14,14 +14,14 @@ dependencies = [
 ]
 
 [project.scripts]
-mason = "mason.cli:app"
+brickie = "brickie.cli:app"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/mason"]
+packages = ["src/brickie"]
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

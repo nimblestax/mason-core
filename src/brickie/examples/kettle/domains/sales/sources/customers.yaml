@@ -1,0 +1,14 @@
+# yaml-language-server: $schema=../../../.brickie/schemas/source.v1.json
+kind: source
+version: 1
+path: /Volumes/{env}_sales/bronze/landing/customers
+format: json
+silver:
+  keys: [customer_id]
+  sequence_by: updated_at
+  scd: 2
+  delete_when: operation = 'DELETE'
+  export: true
+  expectations:
+    - name: has_email
+      expect: email IS NOT NULL

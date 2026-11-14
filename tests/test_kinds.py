@@ -8,18 +8,18 @@ import yaml
 from jsonschema import Draft202012Validator
 from typer.testing import CliRunner
 
-from mason.cli import app
-from mason.kinds import versions
+from brickie.cli import app
+from brickie.kinds import versions
 
 runner = CliRunner()
 
 SOURCE = "domains/sales/sources/orders.yaml"
 MODEL = "domains/sales/models/gold/fct_orders.yaml"
-PLATFORM = "mason.platform.yaml"
+PLATFORM = "brickie.platform.yaml"
 MODELINE = "# yaml-language-server: $schema="
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -36,7 +36,7 @@ def edit(project: Path, file: str, old: str, new: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is False
@@ -50,7 +50,7 @@ def test_schema_prints_a_kinds_json_schema_with_no_project(tmp_path: Path, monke
 
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout)
-    assert envelope["schema"] == "mason.schema/1"
+    assert envelope["schema"] == "brickie.schema/1"
     assert envelope["ok"] is True
     assert envelope["result"]["kind"] == "source"
     assert envelope["result"]["version"] == 1
@@ -85,7 +85,7 @@ def test_schema_of_an_unknown_kind_is_a_usage_error_that_names_the_kinds():
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
-    assert diagnostic["rule"] == "MSN102"
+    assert diagnostic["rule"] == "BRK102"
     assert "model, platform, seed, source" in diagnostic["fix"]
 
 
@@ -94,7 +94,7 @@ def test_a_file_with_no_kind_fails_validation_with_a_stated_fix(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN101"
+    assert diagnostic["rule"] == "BRK101"
     assert diagnostic["file"] == SOURCE
     assert "kind: source" in diagnostic["fix"]
 
@@ -102,17 +102,17 @@ def test_a_file_with_no_kind_fails_validation_with_a_stated_fix(project: Path):
 @pytest.mark.parametrize(
     ("old", "new", "rule"),
     [
-        ("kind: source\n", "kind: sauce\n", "MSN102"),
-        ("kind: source\n", "kind: [source]\n", "MSN102"),
-        ("kind: source\n", "kind: model\n", "MSN105"),
-        ("version: 1\n", "", "MSN103"),
-        ("version: 1\n", "version: 2\n", "MSN104"),
-        ("version: 1\n", "version: one\n", "MSN104"),
-        ("version: 1\n", 'version: "1"\n', "MSN106"),
-        ("version: 1\n", "version: true\n", "MSN106"),
-        ("format: json\n", "", "MSN106"),
-        ("format: json\n", "format: json\nformatt: json\n", "MSN106"),
-        ("format: json\n", "format: 7\n", "MSN106"),
+        ("kind: source\n", "kind: sauce\n", "BRK102"),
+        ("kind: source\n", "kind: [source]\n", "BRK102"),
+        ("kind: source\n", "kind: model\n", "BRK105"),
+        ("version: 1\n", "", "BRK103"),
+        ("version: 1\n", "version: 2\n", "BRK104"),
+        ("version: 1\n", "version: one\n", "BRK104"),
+        ("version: 1\n", 'version: "1"\n', "BRK106"),
+        ("version: 1\n", "version: true\n", "BRK106"),
+        ("format: json\n", "", "BRK106"),
+        ("format: json\n", "format: json\nformatt: json\n", "BRK106"),
+        ("format: json\n", "format: 7\n", "BRK106"),
     ],
 )
 def test_a_bad_source_fails_validation_with_a_rule_id_and_a_fix(
@@ -132,7 +132,7 @@ def test_the_platform_contract_is_checked_like_any_other_file(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN101"
+    assert diagnostic["rule"] == "BRK101"
     assert diagnostic["file"] == PLATFORM
 
 
@@ -141,14 +141,14 @@ def test_a_platform_contract_listing_source_layers_fails_with_the_field_named(pr
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN106"
+    assert diagnostic["rule"] == "BRK106"
     assert "naming.layers.sources" in diagnostic["message"]
 
 
 def test_every_problem_in_a_file_is_reported_at_once(project: Path):
     edit(project, SOURCE, "format: json\n", "extra: 1\n")
 
-    assert [d["rule"] for d in failures(project)] == ["MSN106", "MSN106"]
+    assert [d["rule"] for d in failures(project)] == ["BRK106", "BRK106"]
 
 
 @pytest.mark.parametrize("content", ["kind: [", "just a string", ""])
@@ -157,7 +157,7 @@ def test_a_file_that_is_not_a_yaml_mapping_fails_with_a_rule_id(project: Path, c
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN107"
+    assert diagnostic["rule"] == "BRK107"
     assert diagnostic["file"] == SOURCE
 
 
@@ -166,7 +166,7 @@ def test_a_project_with_no_platform_contract_fails_with_a_rule_id(project: Path)
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN107"
+    assert diagnostic["rule"] == "BRK107"
     assert diagnostic["file"] == PLATFORM
 
 
@@ -182,7 +182,7 @@ def test_sql_with_no_config_beside_it_fails_validation(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN108"
+    assert diagnostic["rule"] == "BRK108"
     assert diagnostic["file"] == "domains/sales/models/gold/fct_orders.sql"
     assert "kind: model" in diagnostic["fix"]
 
@@ -192,7 +192,7 @@ def test_a_model_pointing_at_a_missing_sql_file_fails_validation(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN109"
+    assert diagnostic["rule"] == "BRK109"
     assert diagnostic["file"] == MODEL
     assert "fct_order.sql" in diagnostic["message"]
 
@@ -202,7 +202,7 @@ def test_a_model_may_name_a_sql_file_with_a_different_stem(project: Path):
     (models / "fct_orders.sql").rename(models / "orders_query.sql")
     edit(project, MODEL, "sql: fct_orders.sql", "sql: orders_query.sql")
 
-    compiled = mason(project, "compile")
+    compiled = brickie(project, "compile")
 
     assert compiled.exit_code == 0, compiled.output
     assert (project / "build/src/sales/gold/fct_orders.sql").exists()
@@ -213,7 +213,7 @@ def test_a_bad_model_file_fails_like_any_other_kind(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN101"
+    assert diagnostic["rule"] == "BRK101"
     assert diagnostic["file"] == MODEL
     assert "kind: model" in diagnostic["fix"]
 
@@ -221,25 +221,25 @@ def test_a_bad_model_file_fails_like_any_other_kind(project: Path):
 def test_compile_stops_on_invalid_config_with_the_same_diagnostics(project: Path):
     edit(project, SOURCE, "kind: source\n", "")
 
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
 
     assert result.exit_code == 1
-    assert "MSN101" in result.stdout
+    assert "BRK101" in result.stdout
 
 
 def test_deploy_stops_on_invalid_config_before_touching_a_workspace(project: Path):
     edit(project, SOURCE, "version: 1\n", "")
 
-    result = mason(project, "deploy", "--env", "dev")
+    result = brickie(project, "deploy", "--env", "dev")
 
     assert result.exit_code == 1
-    assert "MSN103" in result.stdout
+    assert "BRK103" in result.stdout
 
 
 def test_init_writes_a_copy_of_every_kinds_schema(project: Path):
     for kind in ("source", "seed", "model", "platform"):
         latest = max(versions(kind))
-        copied = json.loads((project / f".mason/schemas/{kind}.v{latest}.json").read_text())
+        copied = json.loads((project / f".brickie/schemas/{kind}.v{latest}.json").read_text())
         installed = runner.invoke(app, ["schema", kind, "--json"])
         assert copied == json.loads(installed.stdout)["result"]["json_schema"]
 

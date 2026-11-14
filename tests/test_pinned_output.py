@@ -10,7 +10,7 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason.cli import app
+from brickie.cli import app
 
 runner = CliRunner()
 

@@ -15,7 +15,7 @@ Every PR that changes what a user sees or does updates its docs pages in the sam
 
 - **Get started** takes you down one path to a working result.
 - **A guide** does one task, and its title is that task: "Add a source".
-- **A concept page** explains how Mason thinks about one idea, and why.
+- **A concept page** explains how Brickie thinks about one idea, and why.
 - **Reference** is generated. Don't write it by hand.
 
 A page never mixes these. If a guide starts explaining an idea, link to the concept page.
@@ -23,15 +23,15 @@ A page never mixes these. If a guide starts explaining an idea, link to the conc
 ### Voice
 
 - Write to "you", in the present tense, in short sentences.
-- Say what happens. Not "Mason allows you to quarantine rows" but "rows that fail go to quarantine".
+- Say what happens. Not "Brickie allows you to quarantine rows" but "rows that fail go to quarantine".
 - No marketing words: no "powerful", "seamless", "simply", "easily".
-- Mason's terms are lowercase in prose: a source, a gold model, quarantine, the platform contract. Identifiers stay in code: `keys`, `mason.platform.yaml`, `MSN209`.
+- Brickie's terms are lowercase in prose: a source, a gold model, quarantine, the platform contract. Identifiers stay in code: `keys`, `brickie.platform.yaml`, `BRK209`.
 
 ### Show, then tell
 
 - Each guide step is a command or a file, followed by the real output it produces.
-- Write commands bare, `mason validate`, for a reader whose project's `.venv` is active.
-- Examples come from Kettle, the fictional tea shop in `src/mason/examples/kettle/`. A code block titled with a file path, ```` ```yaml title="domains/sales/sources/orders.yaml" ````, must match that file in Kettle. Reference pages use placeholders such as `<source>`.
+- Write commands bare, `brickie validate`, for a reader whose project's `.venv` is active.
+- Examples come from Kettle, the fictional tea shop in `src/brickie/examples/kettle/`. A code block titled with a file path, ```` ```yaml title="domains/sales/sources/orders.yaml" ````, must match that file in Kettle. Reference pages use placeholders such as `<source>`.
 
 ### Link, don't repeat
 

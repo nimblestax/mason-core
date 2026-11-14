@@ -2,10 +2,10 @@
 title: Gold Model
 description: A dataset built from a SQL file that reads Logical Names.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
-A file with `kind: model`, at version 1. `mason schema model` prints the same fields from the Mason you installed.
+A file with `kind: model`, at version 1. `brickie schema model` prints the same fields from the Brickie you installed.
 
 ## Fields
 

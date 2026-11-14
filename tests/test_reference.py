@@ -10,11 +10,11 @@ import typer
 from test_docs import front_matter
 from typer.testing import CliRunner
 
-from mason import reference
-from mason.cli import GROUPS, PASSED_THROUGH, app, every_command
-from mason.diagnostics import EXIT_CODES
-from mason.kinds import KINDS, latest_schema
-from mason.registry import RULES, SERIES, Example
+from brickie import reference
+from brickie.cli import GROUPS, PASSED_THROUGH, app, every_command
+from brickie.diagnostics import EXIT_CODES
+from brickie.kinds import KINDS, latest_schema
+from brickie.registry import RULES, SERIES, Example
 
 DOCS = Path(__file__).parent.parent / "docs"
 
@@ -24,7 +24,7 @@ def generated_pages(docs: Path) -> dict[str, str]:
     return {name: text for name, text in pages.items() if front_matter(text).get("generated")}
 
 
-def test_every_rule_gets_a_page_that_says_it_is_generated_and_by_which_mason(tmp_path: Path):
+def test_every_rule_gets_a_page_that_says_it_is_generated_and_by_which_brickie(tmp_path: Path):
     reference.write(tmp_path)
 
     for code in RULES:
@@ -32,10 +32,10 @@ def test_every_rule_gets_a_page_that_says_it_is_generated_and_by_which_mason(tmp
         assert page["title"].startswith(code)
         assert page["description"]
         assert page["generated"] is True
-        assert page["mason_version"] == version("mason-databricks")
+        assert page["brickie_version"] == version("brickie-core")
 
 
-def test_every_kind_gets_a_page_that_says_it_is_generated_and_by_which_mason(tmp_path: Path):
+def test_every_kind_gets_a_page_that_says_it_is_generated_and_by_which_brickie(tmp_path: Path):
     reference.write(tmp_path)
 
     for kind in KINDS:
@@ -43,7 +43,7 @@ def test_every_kind_gets_a_page_that_says_it_is_generated_and_by_which_mason(tmp
         assert page["title"]
         assert page["description"] == latest_schema(kind)[1]["description"]
         assert page["generated"] is True
-        assert page["mason_version"] == version("mason-databricks")
+        assert page["brickie_version"] == version("brickie-core")
 
 
 def field_rows(page: str) -> list[list[str]]:
@@ -96,7 +96,7 @@ def schema_fields(schema: dict, defs: dict) -> list[tuple[str, str, str]]:
 
 
 @pytest.mark.parametrize("kind", KINDS)
-def test_a_kind_page_and_mason_schema_never_disagree(tmp_path: Path, kind: str):
+def test_a_kind_page_and_brickie_schema_never_disagree(tmp_path: Path, kind: str):
     reference.write(tmp_path)
     printed = json.loads(CliRunner().invoke(app, ["schema", kind, "--json"]).stdout)
     schema = printed["result"]["json_schema"]
@@ -107,7 +107,7 @@ def test_a_kind_page_and_mason_schema_never_disagree(tmp_path: Path, kind: str):
     assert listed == schema_fields(schema, schema.get("$defs", {}))
 
 
-def test_the_committed_reference_is_what_mason_generates(tmp_path: Path):
+def test_the_committed_reference_is_what_brickie_generates(tmp_path: Path):
     reference.write(tmp_path)
 
     assert generated_pages(DOCS) == generated_pages(tmp_path), "Run `just docs` and commit."
@@ -124,8 +124,8 @@ def test_every_rule_has_a_committed_page():
 def test_a_rule_page_says_what_it_checks_why_an_example_that_fails_and_the_fix(tmp_path: Path):
     reference.write(tmp_path)
 
-    rule = RULES["MSN201"]
-    page = (tmp_path / "reference/rules/msn201.md").read_text()
+    rule = RULES["BRK201"]
+    page = (tmp_path / "reference/rules/brk201.md").read_text()
     assert f"## What it checks\n\n{rule.checks}\n" in page
     assert f"## Why\n\n{rule.why}\n" in page
     for path, text in rule.example.files.items():
@@ -148,7 +148,7 @@ def test_every_example_fails_with_its_own_rule(
     for path, text in example.files.items():
         (tmp_path / path).parent.mkdir(parents=True, exist_ok=True)
         (tmp_path / path).write_text(text)
-    command = shlex.split(example.command or "mason validate")[1:]
+    command = shlex.split(example.command or "brickie validate")[1:]
 
     result = runner.invoke(app, [*command, "--json"])
 
@@ -158,9 +158,9 @@ def test_every_example_fails_with_its_own_rule(
 def test_a_rule_page_links_the_principle_behind_it_where_there_is_one(tmp_path: Path):
     reference.write(tmp_path)
 
-    enforced = (tmp_path / "reference/rules/msn201.md").read_text()
+    enforced = (tmp_path / "reference/rules/brk201.md").read_text()
     assert "(https://nimblestax.com/way/code-names-tables-logically)" in enforced
-    assert "nimblestax.com/way" not in (tmp_path / "reference/rules/msn203.md").read_text()
+    assert "nimblestax.com/way" not in (tmp_path / "reference/rules/brk203.md").read_text()
 
 
 # The Way's principles as nimblestax.com publishes them.
@@ -201,7 +201,7 @@ def test_every_command_gets_a_page_listing_its_options_and_exit_codes(tmp_path: 
             text = text.split(f"\n## {section}\n")[1].split("\n## ")[0]
             assert text.startswith(f"\n{registered.help}\n")
         else:
-            assert page["title"] == f"mason {name}"
+            assert page["title"] == f"brickie {name}"
             assert page["description"] == registered.help
         if name in PASSED_THROUGH:
             continue  # Its arguments and exit codes are the Databricks CLI's.
@@ -215,7 +215,7 @@ def test_the_databricks_page_says_its_arguments_and_exit_code_are_the_clis(tmp_p
     reference.write(tmp_path)
 
     text = (tmp_path / "reference/commands/databricks.md").read_text()
-    assert "$ mason databricks <arguments>" in text
+    assert "$ brickie databricks <arguments>" in text
     assert "exits with its exit code" in text
     assert "## JSON result" not in text
 
@@ -293,7 +293,7 @@ def index_rows(page: str) -> list[tuple[str, str, str]]:
     for line in page.splitlines():
         if line.startswith("## "):
             heading = line.removeprefix("## ")
-        found = re.match(r"\| \[`(MSN\d{3})`\]\(([^)]+)\) \|", line)
+        found = re.match(r"\| \[`(BRK\d{3})`\]\(([^)]+)\) \|", line)
         if found:
             rows.append((heading, found[1], found[2]))
     return rows
@@ -324,11 +324,11 @@ def test_a_command_group_gets_one_page_with_a_section_per_subcommand(tmp_path: P
     text = (tmp_path / f"reference/commands/{group}.md").read_text()
     page = front_matter(text)
     registered: Any = typer.main.get_command(app)
-    assert page["title"] == f"mason {group}"
+    assert page["title"] == f"brickie {group}"
     assert page["description"] == registered.commands[group].help
     for inner in registered.commands[group].commands:
         assert f"\n## {inner}\n" in text, inner
-        assert f"$ mason {group} {inner}" in text, inner
+        assert f"$ brickie {group} {inner}" in text, inner
         assert not (tmp_path / f"reference/commands/{group}-{inner}.md").exists()
 
 

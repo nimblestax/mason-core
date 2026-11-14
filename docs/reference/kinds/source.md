@@ -2,10 +2,10 @@
 title: Source
 description: An external dataset landed in bronze and conformed into silver.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
-A file with `kind: source`, at version 1. `mason schema source` prints the same fields from the Mason you installed.
+A file with `kind: source`, at version 1. `brickie schema source` prints the same fields from the Brickie you installed.
 
 ## Fields
 

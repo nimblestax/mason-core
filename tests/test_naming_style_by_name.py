@@ -7,17 +7,17 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason import names
-from mason.cli import app
-from mason.kinds.platform import PlatformV2
-from mason.load.project import load
+from brickie import names
+from brickie.cli import app
+from brickie.kinds.platform import PlatformV2
+from brickie.load.project import load
 
-PLATFORM = "mason.platform.yaml"
+PLATFORM = "brickie.platform.yaml"
 
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -37,7 +37,7 @@ def version_1(catalog: str, schema: str, sources: str = "[bronze, silver]") -> s
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -46,7 +46,7 @@ def test_a_version_1_contract_with_a_styles_patterns_upgrades_to_that_style(proj
     (project / PLATFORM).write_text(version_1("{env}_{domain}", "{layer}"))
 
     assert load(project).platform.naming.style == "domain-catalogs"
-    compiled = mason(project, "compile", "--env", "prod")
+    compiled = brickie(project, "compile", "--env", "prod")
     assert compiled.exit_code == 0, compiled.output
     assert "STREAMING TABLE prod_sales.silver.orders" in compiled.stdout
 
@@ -67,7 +67,7 @@ def test_a_version_1_contract_with_other_patterns_fails_naming_the_closest_style
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN124"
+    assert diagnostic["rule"] == "BRK124"
     assert diagnostic["file"] == PLATFORM
     assert f"The closest is `{closest}`" in diagnostic["message"]
     assert "Custom patterns aren't supported yet" in diagnostic["message"]
@@ -82,7 +82,7 @@ def test_a_version_1_contract_with_renamed_source_layers_fails_pointing_to_a_mod
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN125"
+    assert diagnostic["rule"] == "BRK125"
     assert "always bronze and silver" in diagnostic["message"]
     assert "naming.layers.models" in diagnostic["fix"]
 
@@ -111,7 +111,7 @@ def test_a_version_2_contract_with_any_other_style_fails_naming_the_field(
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN106"
+    assert diagnostic["rule"] == "BRK106"
     assert diagnostic["message"].startswith("naming.style: ")
     assert "domain-catalogs" in diagnostic["message"]
 
@@ -124,12 +124,12 @@ def test_a_version_2_contract_with_any_other_style_fails_naming_the_field(
         '  schema: "{layer}"\n',
     ],
 )
-def test_a_version_2_contract_with_patterns_fails_with_msn124(project: Path, naming: str):
+def test_a_version_2_contract_with_patterns_fails_with_brk124(project: Path, naming: str):
     (project / PLATFORM).write_text(version_2(naming))
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN124"
+    assert diagnostic["rule"] == "BRK124"
     assert "`style`" in diagnostic["fix"]
 
 

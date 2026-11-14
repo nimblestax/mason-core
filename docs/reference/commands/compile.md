@@ -1,12 +1,12 @@
 ---
-title: mason compile
+title: brickie compile
 description: Write generated code, or print it for one Environment.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
 ```console
-$ mason compile [OPTIONS]
+$ brickie compile [OPTIONS]
 ```
 
 ## Options
@@ -19,7 +19,7 @@ $ mason compile [OPTIONS]
 
 ## JSON result
 
-With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.compile/1`. When it succeeds, `result` is:
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `brickie.compile/1`. When it succeeds, `result` is:
 
 Without `--env`, `compile` writes the generated code.
 

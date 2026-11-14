@@ -1,5 +1,5 @@
-"""Mason Skills: `mason init` installs them, `mason validate` warns on drift, and
-`mason skills update` refreshes them without losing local edits."""
+"""Brickie Skills: `brickie init` installs them, `brickie validate` warns on drift, and
+`brickie skills update` refreshes them without losing local edits."""
 
 import json
 import os
@@ -11,8 +11,8 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason import skills
-from mason.cli import app
+from brickie import skills
+from brickie.cli import app
 
 runner = CliRunner()
 
@@ -27,7 +27,7 @@ def files_under(folder: Path) -> dict[str, bytes]:
     }
 
 
-def test_init_beside_an_existing_claude_folder_adds_only_mason_folders(tmp_path: Path):
+def test_init_beside_an_existing_claude_folder_adds_only_brickie_folders(tmp_path: Path):
     claude = tmp_path / ".claude"
     (claude / "skills/my-skill").mkdir(parents=True)
     (claude / "skills/my-skill/SKILL.md").write_text("---\nname: my-skill\n---\nMine.\n")
@@ -40,12 +40,12 @@ def test_init_beside_an_existing_claude_folder_adds_only_mason_folders(tmp_path:
     after = files_under(claude)
     added = {path for path in after if path not in before}
     assert added, "init wrote no skills"
-    assert all(path.startswith("skills/mason-") for path in added)
+    assert all(path.startswith("skills/brickie-") for path in added)
     assert {path: after[path] for path in before} == before
 
 
-def test_init_leaves_an_existing_mason_skill_folder_alone(tmp_path: Path):
-    mine = tmp_path / ".claude/skills/mason-add-source"
+def test_init_leaves_an_existing_brickie_skill_folder_alone(tmp_path: Path):
+    mine = tmp_path / ".claude/skills/brickie-add-source"
     mine.mkdir(parents=True)
     (mine / "SKILL.md").write_text("My own steps.\n")
 
@@ -53,11 +53,11 @@ def test_init_leaves_an_existing_mason_skill_folder_alone(tmp_path: Path):
 
     assert result.exit_code == 0, result.output
     assert files_under(mine) == {"SKILL.md": b"My own steps.\n"}
-    assert (tmp_path / ".agents/skills/mason-add-source/SKILL.md").is_file()
+    assert (tmp_path / ".agents/skills/brickie-add-source/SKILL.md").is_file()
     created = json.loads(result.stdout)["result"]
-    assert ".claude/skills/mason-add-source" in created["skills_left_alone"]
-    assert ".claude/skills/mason-add-source" not in created["skills"]
-    assert ".agents/skills/mason-add-source" in created["skills"]
+    assert ".claude/skills/brickie-add-source" in created["skills_left_alone"]
+    assert ".claude/skills/brickie-add-source" not in created["skills"]
+    assert ".agents/skills/brickie-add-source" in created["skills"]
 
 
 def test_init_with_skills_none_writes_no_skills(tmp_path: Path):
@@ -88,24 +88,24 @@ def test_init_writes_identical_copies_using_only_standard_fields(tmp_path: Path)
         assert fields["name"] == path.split("/")[0]
         assert fields["description"]
         assert all(isinstance(value, str) for value in fields["metadata"].values())
-        assert fields["metadata"]["mason-version"] == version("mason-databricks")
+        assert fields["metadata"]["brickie-version"] == version("brickie-core")
 
 
-def test_no_skill_runs_mason_deploy():
+def test_no_skill_runs_brickie_deploy():
     for name, text in skills.shipped().items():
-        assert "mason deploy" not in text, name
+        assert "brickie deploy" not in text, name
 
 
-SOURCE_SKILL = ".agents/skills/mason-add-source/SKILL.md"
+SOURCE_SKILL = ".agents/skills/brickie-add-source/SKILL.md"
 
 
-def written_by(project: Path, skill: str, mason_version: str) -> None:
+def written_by(project: Path, skill: str, brickie_version: str) -> None:
     path = project / skill
-    current = f'mason-version: "{version("mason-databricks")}"'
-    path.write_text(path.read_text().replace(current, f'mason-version: "{mason_version}"'))
+    current = f'brickie-version: "{version("brickie-core")}"'
+    path.write_text(path.read_text().replace(current, f'brickie-version: "{brickie_version}"'))
 
 
-def test_validate_warns_when_a_skill_is_from_another_mason_and_still_passes(
+def test_validate_warns_when_a_skill_is_from_another_brickie_and_still_passes(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.chdir(tmp_path)
@@ -118,9 +118,9 @@ def test_validate_warns_when_a_skill_is_from_another_mason_and_still_passes(
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is True
     [found] = envelope["diagnostics"]
-    assert (found["rule"], found["severity"], found["file"]) == ("MSN129", "warning", SOURCE_SKILL)
+    assert (found["rule"], found["severity"], found["file"]) == ("BRK129", "warning", SOURCE_SKILL)
     assert "0.0.1" in found["message"]
-    assert "mason skills update" in found["fix"]
+    assert "brickie skills update" in found["fix"]
 
 
 def test_validate_prints_a_drift_warning_beside_valid(
@@ -133,11 +133,11 @@ def test_validate_prints_a_drift_warning_beside_valid(
     result = runner.invoke(app, ["validate"])
 
     assert result.exit_code == 0
-    assert f"MSN129 {SOURCE_SKILL} (warning): " in result.stdout
+    assert f"BRK129 {SOURCE_SKILL} (warning): " in result.stdout
     assert result.stdout.rstrip().endswith("Valid.")
 
 
-def test_validate_says_nothing_of_skills_written_by_this_mason(
+def test_validate_says_nothing_of_skills_written_by_this_brickie(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     monkeypatch.chdir(tmp_path)
@@ -151,14 +151,14 @@ def test_validate_says_nothing_of_skills_written_by_this_mason(
 @pytest.fixture
 def outside_any_repo(monkeypatch: pytest.MonkeyPatch) -> None:
     """A Git hook, such as pre-commit, sets `GIT_DIR` and others. Left set, `git init` here and
-    the `git check-ignore` Mason runs would act on the repo being committed to."""
+    the `git check-ignore` Brickie runs would act on the repo being committed to."""
     for name in [name for name in os.environ if name.startswith("GIT_")]:
         monkeypatch.delenv(name)
 
 
 def git_repo_ignoring(folder: Path, pattern: str) -> None:
     subprocess.run(["git", "init", "-q", str(folder)], check=True)
-    # Not `.gitignore`, which `mason init` writes its own of.
+    # Not `.gitignore`, which `brickie init` writes its own of.
     (folder / ".git/info/exclude").write_text(f"{pattern}\n")
 
 
@@ -173,7 +173,7 @@ def test_init_warns_when_git_ignores_the_claude_folder(tmp_path: Path):
     assert envelope["ok"] is True
     [found] = envelope["diagnostics"]
     assert (found["rule"], found["severity"], found["file"]) == (
-        "MSN914",
+        "BRK914",
         "warning",
         ".claude/skills",
     )
@@ -194,12 +194,12 @@ def initialised(folder: Path, monkeypatch: pytest.MonkeyPatch, *args: str) -> Pa
     return folder
 
 
-def test_skills_update_refreshes_both_copies_of_skills_from_another_mason(
+def test_skills_update_refreshes_both_copies_of_skills_from_another_brickie(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     project = initialised(tmp_path, monkeypatch)
     for folder in SKILL_FOLDERS:
-        written_by(project, f"{folder}/mason-add-source/SKILL.md", "0.0.1")
+        written_by(project, f"{folder}/brickie-add-source/SKILL.md", "0.0.1")
     (project / ".claude/skills/my-skill").mkdir()
     (project / ".claude/skills/my-skill/SKILL.md").write_text("Mine.\n")
 
@@ -207,14 +207,14 @@ def test_skills_update_refreshes_both_copies_of_skills_from_another_mason(
 
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout)
-    assert envelope["schema"] == "mason.skills.update/1"
+    assert envelope["schema"] == "brickie.skills.update/1"
     assert sorted(envelope["result"]["skills"]) == [
-        ".agents/skills/mason-add-source",
-        ".claude/skills/mason-add-source",
+        ".agents/skills/brickie-add-source",
+        ".claude/skills/brickie-add-source",
     ]
     for folder in SKILL_FOLDERS:
-        installed = (project / folder / "mason-add-source/SKILL.md").read_text()
-        assert installed == skills.shipped()["mason-add-source"]
+        installed = (project / folder / "brickie-add-source/SKILL.md").read_text()
+        assert installed == skills.shipped()["brickie-add-source"]
     assert (project / ".claude/skills/my-skill/SKILL.md").read_text() == "Mine.\n"
     assert json.loads(runner.invoke(app, ["validate", "--json"]).stdout)["diagnostics"] == []
 
@@ -242,7 +242,7 @@ def test_skills_update_stops_on_a_local_edit_shows_it_and_writes_nothing(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     project = initialised(tmp_path, monkeypatch)
-    edited = edit(project, ".claude/skills/mason-add-model/SKILL.md", "6. Our own step.\n")
+    edited = edit(project, ".claude/skills/brickie-add-model/SKILL.md", "6. Our own step.\n")
     written_by(project, SOURCE_SKILL, "0.0.1")
     old = (project / SOURCE_SKILL).read_text()
 
@@ -251,10 +251,10 @@ def test_skills_update_stops_on_a_local_edit_shows_it_and_writes_nothing(
     assert result.exit_code == 2, result.output
     envelope = json.loads(result.stdout)
     [found] = envelope["diagnostics"]
-    assert (found["rule"], found["file"]) == ("MSN915", ".claude/skills/mason-add-model/SKILL.md")
+    assert (found["rule"], found["file"]) == ("BRK915", ".claude/skills/brickie-add-model/SKILL.md")
     assert "-6. Our own step." in found["message"]
     assert "--force" in found["fix"]
-    assert (project / ".claude/skills/mason-add-model/SKILL.md").read_text() == edited
+    assert (project / ".claude/skills/brickie-add-model/SKILL.md").read_text() == edited
     assert (project / SOURCE_SKILL).read_text() == old
 
 
@@ -262,13 +262,13 @@ def test_skills_update_with_force_replaces_a_local_edit(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ):
     project = initialised(tmp_path, monkeypatch)
-    edit(project, ".claude/skills/mason-add-model/SKILL.md", "6. Our own step.\n")
+    edit(project, ".claude/skills/brickie-add-model/SKILL.md", "6. Our own step.\n")
 
     result = runner.invoke(app, ["skills", "update", "--force"])
 
     assert result.exit_code == 0, result.output
-    installed = (project / ".claude/skills/mason-add-model/SKILL.md").read_text()
-    assert installed == skills.shipped()["mason-add-model"]
+    installed = (project / ".claude/skills/brickie-add-model/SKILL.md").read_text()
+    assert installed == skills.shipped()["brickie-add-model"]
 
 
 def test_a_skill_checked_out_with_windows_line_endings_is_not_an_edit(
@@ -289,5 +289,5 @@ def test_skills_update_outside_a_project_writes_nothing(
     result = runner.invoke(app, ["skills", "update", "--json"])
 
     assert result.exit_code == 2, result.output
-    assert json.loads(result.stdout)["diagnostics"][0]["file"] == "mason.platform.yaml"
+    assert json.loads(result.stdout)["diagnostics"][0]["file"] == "brickie.platform.yaml"
     assert list(tmp_path.iterdir()) == []

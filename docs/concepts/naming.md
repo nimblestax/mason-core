@@ -3,7 +3,7 @@ title: Naming
 description: The three naming styles, how a logical name becomes a real table name in each environment, and what to do when none of them fits.
 ---
 
-Your SQL reads tables by logical name, such as `sales.silver.orders`: the domain, the layer and the table. Mason turns each logical name into a real catalog, schema and table for the environment it deploys to. The naming style in `mason.platform.yaml` says how.
+Your SQL reads tables by logical name, such as `sales.silver.orders`: the domain, the layer and the table. Brickie turns each logical name into a real catalog, schema and table for the environment it deploys to. The naming style in `brickie.platform.yaml` says how.
 
 ```yaml
 naming:
@@ -12,7 +12,7 @@ naming:
     models: [gold]
 ```
 
-`mason init` asks for the style and writes it here. Pressing Enter takes `domain-catalogs`.
+`brickie init` asks for the style and writes it here. Pressing Enter takes `domain-catalogs`.
 
 ## The three styles
 
@@ -44,34 +44,34 @@ The SQL is the same in every environment. Only the real name changes. With `doma
 
 Each domain and layer pair gets its own catalog and schema. A gold model in the same project, `sales.gold.fct_orders`, is `prod_sales.gold.fct_orders` in prod, and a finance source, `finance.silver.invoices`, is `prod_finance.silver.invoices`.
 
-`mason init` prints every catalog and schema your project needs, so you can create them before your first deploy. Mason never creates them. `mason compile --env prod` shows the real names in the code it generates.
+`brickie init` prints every catalog and schema your project needs, so you can create them before your first deploy. Brickie never creates them. `brickie compile --env prod` shows the real names in the code it generates.
 
-`mason validate --platform` signs in to an environment's workspace and checks that its catalogs and schemas are there, so a missing one fails before a deploy rather than halfway through one. It checks the default environment, or the one `--env` names:
+`brickie validate --platform` signs in to an environment's workspace and checks that its catalogs and schemas are there, so a missing one fails before a deploy rather than halfway through one. It checks the default environment, or the one `--env` names:
 
 ```console
-$ mason validate --platform --env dev
-MSN302 mason.platform.yaml: The schema `dev_sales.silver` isn't in dev's workspace, https://kettle.cloud.databricks.com, or the identity Mason signed in as can't see it. The project's tables in dev need it.
-  Fix: Create the schema `silver` in the catalog `dev_sales`, or grant the identity `USE SCHEMA` on it. Mason never creates schemas.
+$ brickie validate --platform --env dev
+BRK302 brickie.platform.yaml: The schema `dev_sales.silver` isn't in dev's workspace, https://kettle.cloud.databricks.com, or the identity Brickie signed in as can't see it. The project's tables in dev need it.
+  Fix: Create the schema `silver` in the catalog `dev_sales`, or grant the identity `USE SCHEMA` on it. Brickie never creates schemas.
 ```
 
-It checks one environment at a time, because each CI job signs in as one environment's identity. The workflows `mason init --ci github` writes run it as dev, before anything else. Plain `mason validate` reads no workspace.
+It checks one environment at a time, because each CI job signs in as one environment's identity. The workflows `brickie init --ci github` writes run it as dev, before anything else. Plain `brickie validate` reads no workspace.
 
 ## Changing the style
 
 Before your first deploy, change the style by editing that one word.
 
 > **Warning**
-> After a deploy, a new style gives every table a new catalog or schema. The next deploy creates empty tables there and leaves the old ones where they are. Mason doesn't stop this yet, so don't change the style of a deployed project.
+> After a deploy, a new style gives every table a new catalog or schema. The next deploy creates empty tables there and leaves the old ones where they are. Brickie doesn't stop this yet, so don't change the style of a deployed project.
 
 ## When none of these fit
 
 You name the environments, the domains and the model layers yourself, so most conventions fit one of the styles. A prefix is part of the name you choose. If your catalogs start with `acme_prod`, name the environment `acme_prod`, and `domain-catalogs` gives `acme_prod_sales.silver.orders`. For now, the environment you develop in must still be called `dev`.
 
-Mason fixes two things:
+Brickie fixes two things:
 
 - **The environment comes first.** Catalogs then sort by environment, so when you review grants, everything in prod sits together.
 - **Every environment, domain and layer gets its own catalog and schema.** Grants, expectations and quarantine all apply per schema, so two domains or two layers in one schema would share them. Two environments in one schema would write to the same tables, so a change in dev would reach prod.
 
-Patterns of your own, set as `catalog` and `schema`, aren't supported yet. A version 1 `mason.platform.yaml` with patterns that match a style is read as that style. Patterns that match none fail with [`MSN124`](../reference/rules/msn124.md), which names the closest style.
+Patterns of your own, set as `catalog` and `schema`, aren't supported yet. A version 1 `brickie.platform.yaml` with patterns that match a style is read as that style. Patterns that match none fail with [`BRK124`](../reference/rules/brk124.md), which names the closest style.
 
-If your convention still doesn't fit, [open an issue on mason-core](https://github.com/nimblestax/mason-core/issues/new) with the catalog and schema names you use. Real names help decide what custom patterns must allow.
+If your convention still doesn't fit, [open an issue on brickie-core](https://github.com/nimblestax/brickie-core/issues/new) with the catalog and schema names you use. Real names help decide what custom patterns must allow.

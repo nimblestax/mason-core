@@ -1,33 +1,33 @@
 ---
-title: mason skills
-description: Keep the Mason Skills in this project.
+title: brickie skills
+description: Keep the Brickie Skills in this project.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
 ## update
 
-Refresh both copies of each Mason Skill to this Mason's version.
+Refresh both copies of each Brickie Skill to this Brickie's version.
 
 ```console
-$ mason skills update [OPTIONS]
+$ brickie skills update [OPTIONS]
 ```
 
 ### Options
 
 | Option | Takes | Default | Meaning |
 | --- | --- | --- | --- |
-| `--force` | Nothing |  | Replace skills edited since Mason wrote them. |
+| `--force` | Nothing |  | Replace skills edited since Brickie wrote them. |
 | `--project` | path | `.` | The project folder. |
 | `--json` | Nothing |  | Print one JSON envelope. |
 
 ### JSON result
 
-With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.skills.update/1`. When it succeeds, `result` is:
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `brickie.skills.update/1`. When it succeeds, `result` is:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
-| `skills` | array of string | The Mason Skill folders written. A skill already up to date isn't listed. |
+| `skills` | array of string | The Brickie Skill folders written. A skill already up to date isn't listed. |
 
 ## Exit codes
 

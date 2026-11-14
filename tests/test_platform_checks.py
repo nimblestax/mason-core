@@ -1,4 +1,4 @@
-"""`mason validate --platform`: the platform objects a project needs exist in its workspace."""
+"""`brickie validate --platform`: the platform objects a project needs exist in its workspace."""
 
 import json
 from datetime import datetime
@@ -7,10 +7,10 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason import cli
-from mason.cli import app
-from mason.deploy import deploy, pinned_cli
-from mason.load.project import load
+from brickie import cli
+from brickie.cli import app
+from brickie.deploy import deploy, pinned_cli
+from brickie.load.project import load
 
 runner = CliRunner()
 
@@ -33,7 +33,7 @@ class FakeUnityCatalog:
         return self.schemas_by_catalog[catalog]
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -45,7 +45,7 @@ def project(tmp_path: Path) -> Path:
 
 @pytest.fixture
 def workspace(monkeypatch: pytest.MonkeyPatch) -> FakeUnityCatalog:
-    """Everything `mason init` lists for dev, until a test takes something away."""
+    """Everything `brickie init` lists for dev, until a test takes something away."""
     fake = FakeUnityCatalog({"dev_sales": {"bronze", "silver", "gold"}})
     monkeypatch.setattr(cli, "DatabricksCli", lambda: fake)
     return fake
@@ -54,20 +54,20 @@ def workspace(monkeypatch: pytest.MonkeyPatch) -> FakeUnityCatalog:
 def test_a_missing_catalog_fails_with_a_rule_naming_it(project: Path, workspace: FakeUnityCatalog):
     del workspace.schemas_by_catalog["dev_sales"]
 
-    result = mason(project, "validate", "--platform", "--json")
+    result = brickie(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
-    assert diagnostic["rule"] == "MSN301"
+    assert diagnostic["rule"] == "BRK301"
     assert "dev_sales" in diagnostic["message"]
 
 
 def test_plain_validate_makes_no_workspace_call(project: Path, workspace: FakeUnityCatalog):
     del workspace.schemas_by_catalog["dev_sales"]
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
     assert workspace.calls == []
@@ -76,11 +76,11 @@ def test_plain_validate_makes_no_workspace_call(project: Path, workspace: FakeUn
 def test_a_missing_schema_fails_with_a_rule_naming_it(project: Path, workspace: FakeUnityCatalog):
     workspace.schemas_by_catalog["dev_sales"] = {"bronze", "gold"}
 
-    result = mason(project, "validate", "--platform", "--json")
+    result = brickie(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN302"
+    assert diagnostic["rule"] == "BRK302"
     assert "dev_sales.silver" in diagnostic["message"]
 
 
@@ -88,7 +88,7 @@ PROD_HOST = "https://kettle-prod.cloud.databricks.com"
 
 
 def add_prod(project: Path, host: str | None) -> None:
-    contract = project / "mason.platform.yaml"
+    contract = project / "brickie.platform.yaml"
     settings = "\n    role: production" + (f"\n    host: {host}" if host else "")
     contract.write_text(
         contract.read_text().replace("naming:\n", f"  prod:{settings}\nnaming:\n", 1)
@@ -101,7 +101,7 @@ def test_env_checks_that_environment_in_its_own_workspace(
     add_prod(project, PROD_HOST)
     workspace.schemas_by_catalog = {"prod_sales": {"bronze", "silver", "gold"}}
 
-    result = mason(project, "validate", "--platform", "--env", "prod", "--json")
+    result = brickie(project, "validate", "--platform", "--env", "prod", "--json")
 
     assert result.exit_code == 0, result.output
     assert workspace.calls == [
@@ -115,10 +115,10 @@ def test_prod_in_a_shared_or_its_own_workspace_validates_with_no_warning(
     project: Path, host: str | None
 ):
     # Every Naming Style puts the Environment in the catalog, so a shared workspace shares no
-    # table, and its identities and grants are nothing Mason checks.
+    # table, and its identities and grants are nothing Brickie checks.
     add_prod(project, host)
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert json.loads(result.stdout)["diagnostics"] == []
 
@@ -148,12 +148,12 @@ def test_the_warning_never_stops_a_deploy(project: Path):
 
 def test_the_generated_ci_checks_the_platform_as_dev_before_anything_else(project: Path):
     workflows = project / ".github/workflows"
-    pull_request = (workflows / "mason-pull-request.yaml").read_text()
-    merge = (workflows / "mason-merge.yaml").read_text()
+    pull_request = (workflows / "brickie-pull-request.yaml").read_text()
+    merge = (workflows / "brickie-merge.yaml").read_text()
 
-    assert "mason validate --platform --env dev" in pull_request
-    assert "mason validate --platform --env dev" in merge
-    assert merge.index("mason validate --platform") < merge.index("mason deploy")
+    assert "brickie validate --platform --env dev" in pull_request
+    assert "brickie validate --platform --env dev" in merge
+    assert merge.index("brickie validate --platform") < merge.index("brickie deploy")
     # The check signs in, so the pull request job needs dev's identity.
     assert "id-token: write" in pull_request
     assert "environment: dev" in pull_request
@@ -186,11 +186,11 @@ def test_the_databricks_cli_lists_catalogs_and_schemas_in_the_environments_works
     monkeypatch.setenv(pinned_cli.OVERRIDE, str(script))
     monkeypatch.setenv("DATABRICKS_HOST", "https://somewhere-else.cloud.databricks.com")
 
-    result = mason(project, "validate", "--platform", "--json")
+    result = brickie(project, "validate", "--platform", "--json")
 
     assert result.exit_code == 1, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN302"
+    assert diagnostic["rule"] == "BRK302"
     assert "dev_sales.silver" in diagnostic["message"]
     calls = (cli_folder / "calls").read_text().splitlines()
     assert f"{HOST} catalogs list --output json" in calls
@@ -198,9 +198,9 @@ def test_the_databricks_cli_lists_catalogs_and_schemas_in_the_environments_works
 
 
 def test_env_without_platform_is_a_usage_error(project: Path, workspace: FakeUnityCatalog):
-    result = mason(project, "validate", "--env", "dev", "--json")
+    result = brickie(project, "validate", "--env", "dev", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN901"
+    assert diagnostic["rule"] == "BRK901"
     assert "--platform" in diagnostic["fix"]

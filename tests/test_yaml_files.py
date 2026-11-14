@@ -1,10 +1,10 @@
-"""Mason reads `.yml` config files, but every file it writes or ships ends in `.yaml`."""
+"""Brickie reads `.yml` config files, but every file it writes or ships ends in `.yaml`."""
 
 from pathlib import Path
 
 from typer.testing import CliRunner
 
-from mason.cli import app
+from brickie.cli import app
 
 REPO = Path(__file__).parent.parent
 
@@ -17,8 +17,8 @@ def test_init_and_compile_write_no_yml_file(tmp_path: Path):
 
     written = {file.relative_to(tmp_path).as_posix() for file in tmp_path.rglob("*.y*ml")}
 
-    assert ".github/workflows/mason-merge.yaml" in written
-    assert ".github/workflows/mason-pull-request.yaml" in written
+    assert ".github/workflows/brickie-merge.yaml" in written
+    assert ".github/workflows/brickie-pull-request.yaml" in written
     assert "build/databricks.yaml" in written
     assert not [file for file in written if file.endswith(".yml")]
 

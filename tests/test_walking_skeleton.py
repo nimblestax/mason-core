@@ -10,10 +10,10 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason.cli import app
-from mason.deploy import deploy, pinned_cli
-from mason.deploy.databricks import WorkspaceError
-from mason.load.project import load
+from brickie.cli import app
+from brickie.deploy import deploy, pinned_cli
+from brickie.deploy.databricks import WorkspaceError
+from brickie.load.project import load
 
 runner = CliRunner()
 
@@ -38,7 +38,7 @@ class FakeWorkspace:
             raise WorkspaceError(f"{call[0]} failed")
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -50,17 +50,17 @@ def project(tmp_path: Path) -> Path:
 
 
 def test_a_freshly_initialised_project_validates_with_no_workspace(project: Path):
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
     envelope = json.loads(result.stdout)
-    assert envelope["schema"] == "mason.validate/1"
+    assert envelope["schema"] == "brickie.validate/1"
     assert envelope["ok"] is True
     assert envelope["diagnostics"] == []
 
 
 def test_generated_code_uses_placeholders_and_never_real_names(project: Path):
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
 
     assert result.exit_code == 0, result.output
     gold = (project / "build/src/sales/gold/fct_orders.sql").read_text()
@@ -70,7 +70,7 @@ def test_generated_code_uses_placeholders_and_never_real_names(project: Path):
 
 
 def test_compile_for_an_environment_prints_runnable_sql(project: Path):
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
     assert "CREATE OR REFRESH MATERIALIZED VIEW dev_sales.gold.fct_orders" in result.stdout
@@ -79,7 +79,7 @@ def test_compile_for_an_environment_prints_runnable_sql(project: Path):
 
 
 def test_a_source_lands_in_bronze_and_silver(project: Path):
-    mason(project, "compile")
+    brickie(project, "compile")
 
     ingest = (project / "build/src/sales/ingest/orders.sql").read_text()
     assert "STREAMING TABLE ${catalog_sales_bronze}.${schema_sales_bronze}.orders" in ingest
@@ -90,36 +90,36 @@ def test_a_source_lands_in_bronze_and_silver(project: Path):
 
 
 def test_every_real_name_follows_the_platform_contracts_naming_style(project: Path):
-    contract = project / "mason.platform.yaml"
+    contract = project / "brickie.platform.yaml"
     contract.write_text(
         contract.read_text().replace("style: domain-catalogs", "style: layer-catalogs")
     )
 
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
 
     assert "dev_gold.sales.fct_orders" in result.stdout
     assert "dev_sales" not in result.stdout.replace("/Volumes/dev_sales", "")
 
 
-def test_nothing_in_the_generated_code_refers_to_mason(project: Path):
-    mason(project, "compile")
+def test_nothing_in_the_generated_code_refers_to_brickie(project: Path):
+    brickie(project, "compile")
 
     generated = [f for f in (project / "build/src").rglob("*") if f.is_file()]
     assert generated
-    assert all("mason" not in f.read_text().lower() for f in generated)
+    assert all("brickie" not in f.read_text().lower() for f in generated)
 
 
 def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: Path):
     model = project / "domains/sales/models/gold/fct_orders.sql"
     model.write_text("SELECT * FROM sales.silver.nonexistent")
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 1
     envelope = json.loads(result.stdout)
     assert envelope["ok"] is False
     [diagnostic] = envelope["diagnostics"]
-    assert diagnostic["rule"] == "MSN201"
+    assert diagnostic["rule"] == "BRK201"
     assert diagnostic["file"] == "domains/sales/models/gold/fct_orders.sql"
     assert "sales.silver.nonexistent" in diagnostic["message"]
     assert diagnostic["fix"]
@@ -128,7 +128,7 @@ def test_a_model_reading_an_unknown_logical_name_fails_with_a_rule_id(project: P
 def test_compile_writes_a_package_databricks_accepts(tmp_path: Path, stub_workspace: str):
     runner.invoke(app, ["init", str(tmp_path), "--host", stub_workspace])
 
-    assert mason(tmp_path, "compile").exit_code == 0
+    assert brickie(tmp_path, "compile").exit_code == 0
 
     environment = {
         "PATH": os.environ["PATH"],
@@ -187,18 +187,18 @@ def test_a_failed_deploy_never_refreshes(project: Path):
     assert [call[0] for call in workspace.calls] == ["deploy"]
 
 
-def test_github_ci_files_are_thin_calls_to_mason_with_no_secret(project: Path):
-    pull_request = (project / ".github/workflows/mason-pull-request.yaml").read_text()
-    merge = (project / ".github/workflows/mason-merge.yaml").read_text()
+def test_github_ci_files_are_thin_calls_to_brickie_with_no_secret(project: Path):
+    pull_request = (project / ".github/workflows/brickie-pull-request.yaml").read_text()
+    merge = (project / ".github/workflows/brickie-merge.yaml").read_text()
 
-    assert "mason validate" in pull_request
-    assert "mason deploy --env dev" in merge
+    assert "brickie validate" in pull_request
+    assert "brickie deploy --env dev" in merge
     assert "id-token: write" in merge
     assert "DATABRICKS_AUTH_TYPE: github-oidc" in merge
     assert "secrets." not in pull_request + merge
 
 
-def test_github_ci_files_install_no_databricks_cli_because_mason_brings_its_own(project: Path):
+def test_github_ci_files_install_no_databricks_cli_because_brickie_brings_its_own(project: Path):
     workflows = (project / ".github/workflows").glob("*.yaml")
 
     for workflow in workflows:
@@ -211,7 +211,7 @@ def test_github_ci_files_install_no_databricks_cli_because_mason_brings_its_own(
 
 
 def test_generated_code_is_uploaded_even_though_init_gitignores_the_package(project: Path):
-    mason(project, "compile")
+    brickie(project, "compile")
 
     assert "build/" in (project / ".gitignore").read_text()
     package = yaml.safe_load((project / "build/databricks.yaml").read_text())
@@ -219,10 +219,10 @@ def test_generated_code_is_uploaded_even_though_init_gitignores_the_package(proj
 
 
 def test_a_deleted_model_leaves_the_package(project: Path):
-    mason(project, "compile")
+    brickie(project, "compile")
     (project / "domains/sales/models/gold/fct_orders.sql").unlink()
     (project / "domains/sales/models/gold/fct_orders.yaml").unlink()
 
-    mason(project, "compile")
+    brickie(project, "compile")
 
     assert not (project / "build/src/sales/gold/fct_orders.sql").exists()

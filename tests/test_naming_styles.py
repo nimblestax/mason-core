@@ -1,4 +1,4 @@
-"""`mason init` offers three Naming Styles and writes the one chosen into the contract."""
+"""`brickie init` offers three Naming Styles and writes the one chosen into the contract."""
 
 import json
 from pathlib import Path
@@ -7,15 +7,15 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason import cli
-from mason.cli import app
+from brickie import cli
+from brickie.cli import app
 
-PLATFORM = "mason.platform.yaml"
+PLATFORM = "brickie.platform.yaml"
 
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str, input: str | None = None):
+def brickie(project: Path, *args: str, input: str | None = None):
     return runner.invoke(app, [*args, "--project", str(project)], input=input)
 
 
@@ -36,7 +36,7 @@ def test_layer_catalogs_writes_its_style_and_resolves_a_logical_name(tmp_path: P
 
     assert naming(tmp_path) == "layer-catalogs"
     add_environment(tmp_path, "prod")
-    compiled = mason(tmp_path, "compile", "--env", "prod")
+    compiled = brickie(tmp_path, "compile", "--env", "prod")
     assert compiled.exit_code == 0, compiled.output
     assert "STREAMING TABLE prod_silver.sales.orders" in compiled.stdout
 
@@ -60,9 +60,9 @@ def test_each_style_writes_only_its_name_and_compiles(tmp_path: Path, style: str
     contract = yaml.safe_load((tmp_path / PLATFORM).read_text())
     assert set(contract) == {"kind", "version", "name", "environments", "naming", "domains"}
     assert contract["naming"] == {"style": style, "layers": {"models": ["gold"]}}
-    assert mason(tmp_path, "validate").exit_code == 0
+    assert brickie(tmp_path, "validate").exit_code == 0
     add_environment(tmp_path, "prod")
-    compiled = mason(tmp_path, "compile", "--env", "prod").stdout
+    compiled = brickie(tmp_path, "compile", "--env", "prod").stdout
     assert f"STREAMING TABLE {silver}" in compiled
     assert f"FROM {silver}" in compiled  # fct_orders reads `sales.silver.orders`.
 
@@ -81,7 +81,7 @@ def test_the_starter_gold_models_sit_in_their_layer_folder(tmp_path: Path):
     models = tmp_path / "domains/sales/models"
     assert sorted(p.name for p in models.iterdir()) == ["gold"]
     assert {p.stem for p in (models / "gold").glob("*.yaml")} == {"dim_date", "fct_orders"}
-    compiled = mason(tmp_path, "compile", "--env", "dev")
+    compiled = brickie(tmp_path, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
     assert "MATERIALIZED VIEW dev_sales.gold.fct_orders" in compiled.stdout
     assert "MATERIALIZED VIEW dev_sales.gold.dim_date" in compiled.stdout

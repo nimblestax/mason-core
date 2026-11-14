@@ -11,18 +11,18 @@ from jsonschema import Draft202012Validator
 from pydantic import BaseModel
 from typer.testing import CliRunner
 
-from mason.cli import app
-from mason.kinds import platform
-from mason.load import config
-from mason.load.project import load
-from mason.scaffold import PLACEHOLDER_HOST
+from brickie.cli import app
+from brickie.kinds import platform
+from brickie.load import config
+from brickie.load.project import load
+from brickie.scaffold import PLACEHOLDER_HOST
 
 runner = CliRunner()
 
-PLATFORM = "mason.platform.yaml"
+PLATFORM = "brickie.platform.yaml"
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -39,7 +39,7 @@ def edit(project: Path, old: str, new: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -54,14 +54,14 @@ def failures(project: Path) -> list[dict]:
         ("  style: domain-catalogs\n", "  style: 7\n", "naming.style"),
     ],
 )
-def test_a_bad_platform_contract_names_the_field_in_an_msn106(
+def test_a_bad_platform_contract_names_the_field_in_a_brk106(
     project: Path, old: str, new: str, field: str
 ):
     edit(project, old, new)
 
     diagnostics = failures(project)
 
-    assert {d["rule"] for d in diagnostics} == {"MSN106"}
+    assert {d["rule"] for d in diagnostics} == {"BRK106"}
     assert any(d["message"].startswith(f"{field}: ") for d in diagnostics), diagnostics
     assert all(d["file"] == PLATFORM for d in diagnostics)
 
@@ -84,7 +84,7 @@ def test_the_served_schema_passes_a_valid_contract_and_fails_invalid_ones(projec
 def test_the_served_schema_titles_and_describes_every_field():
     json_schema = platform_schema()
 
-    assert json_schema["title"] == "Mason Platform Contract"
+    assert json_schema["title"] == "Brickie Platform Contract"
     objects = [json_schema, *json_schema["$defs"].values()]
     for described in objects:
         assert described["title"] and described["description"]
@@ -166,7 +166,7 @@ def test_a_contract_is_upgraded_through_every_step_to_the_latest_version(
         ('  schema: "{layer!r}"', "naming.schema"),
     ],
 )
-def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_an_msn106(
+def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_a_brk106(
     project: Path, new: str, field: str
 ):
     old = '  catalog: "{env}_{domain}"' if "catalog" in new else '  schema: "{layer}"'
@@ -174,7 +174,7 @@ def test_a_version_1_pattern_with_anything_but_known_placeholders_fails_with_an_
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN106"
+    assert diagnostic["rule"] == "BRK106"
     assert diagnostic["message"].startswith(f"{field}: ")
     assert "{env}, {domain} and {layer}" in diagnostic["message"]
 
@@ -183,7 +183,7 @@ def test_a_project_with_no_domains_compiles_to_a_package_with_no_pipelines(proje
     edit(project, "domains:\n  - sales\n", "domains: []\n")
     shutil.rmtree(project / "domains")
 
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
 
     assert result.exit_code == 0, result.output
     bundle = yaml.safe_load((project / "build/databricks.yaml").read_text())
@@ -214,7 +214,7 @@ def test_test_and_prod_use_devs_host_unless_they_set_their_own(project: Path):
     }
 
 
-def test_a_contract_with_no_host_on_dev_fails_with_an_msn122(project: Path):
+def test_a_contract_with_no_host_on_dev_fails_with_a_brk122(project: Path):
     environments(
         project,
         "environments:\n  dev:\n    role: development\n"
@@ -223,12 +223,12 @@ def test_a_contract_with_no_host_on_dev_fails_with_an_msn122(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN122"
+    assert diagnostic["rule"] == "BRK122"
     assert diagnostic["file"] == PLATFORM
     assert "dev" in diagnostic["fix"]
 
 
-def test_two_default_environments_fail_with_an_msn123(project: Path):
+def test_two_default_environments_fail_with_a_brk123(project: Path):
     environments(
         project,
         f"environments:\n  dev:\n    host: {PLACEHOLDER_HOST}\n    role: development\n"
@@ -238,7 +238,7 @@ def test_two_default_environments_fail_with_an_msn123(project: Path):
 
     [diagnostic] = failures(project)
 
-    assert diagnostic["rule"] == "MSN123"
+    assert diagnostic["rule"] == "BRK123"
     assert "dev" in diagnostic["message"] and "test" in diagnostic["message"]
 
 
@@ -257,11 +257,11 @@ def test_the_default_environment_is_the_one_marked_default_or_else_dev(
 def test_deploy_without_env_exits_2_with_a_fix_whatever_the_default(project: Path, marked: str):
     environments(project, DEV_ONLY.format(host=PLACEHOLDER_HOST) + marked)
 
-    result = mason(project, "deploy", "--json")
+    result = brickie(project, "deploy", "--json")
 
     assert result.exit_code == 2, result.output
     [diagnostic] = json.loads(result.stdout)["diagnostics"]
-    assert diagnostic["rule"] == "MSN901"
+    assert diagnostic["rule"] == "BRK901"
     assert "--env dev" in diagnostic["fix"]
 
 
@@ -277,7 +277,7 @@ def test_a_contract_with_a_host_on_every_environment_validates_unchanged(project
         ),
     )
 
-    result = mason(project, "validate")
+    result = brickie(project, "validate")
 
     assert result.exit_code == 0, result.output
     assert load(project).platform.hosts == hosts

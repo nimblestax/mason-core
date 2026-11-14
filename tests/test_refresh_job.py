@@ -10,21 +10,21 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason.cli import app
-from mason.deploy import pinned_cli
-from mason.load.project import load
+from brickie.cli import app
+from brickie.deploy import pinned_cli
+from brickie.load.project import load
 
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
 def init(project: Path, *args: str) -> Path:
-    """The project `mason init` writes, with a `finance` Domain beside `sales`."""
+    """The project `brickie init` writes, with a `finance` Domain beside `sales`."""
     assert runner.invoke(app, ["init", str(project), *args]).exit_code == 0
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     platform.write_text(platform.read_text().replace("  - sales\n", "  - sales\n  - finance\n"))
     return project
 
@@ -35,7 +35,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def add_domain(project: Path, domain: str) -> None:
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     platform.write_text(platform.read_text().replace("  - sales\n", f"  - sales\n  - {domain}\n"))
 
 
@@ -56,14 +56,14 @@ def write_model(project: Path, domain: str, name: str, query: str) -> None:
 
 
 def set_environments(project: Path, block: str) -> None:
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     text = platform.read_text()
     start, end = text.index("environments:\n"), text.index("naming:\n")
     platform.write_text(text[:start] + block + text[end:])
 
 
 def compiled(project: Path) -> dict:
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
     assert result.exit_code == 0, result.output
     return yaml.safe_load((project / "build/databricks.yaml").read_text())
 

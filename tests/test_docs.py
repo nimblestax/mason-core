@@ -123,15 +123,15 @@ def test_links_to_pages_sections_and_websites_are_fine(tmp_path: Path):
 
 
 def test_a_broken_reference_style_link_is_a_problem(tmp_path: Path):
-    write(tmp_path / "index.md", PAGE + "See [MSN201][msn201].\n\n[msn201]: reference/msn201.md\n")
+    write(tmp_path / "index.md", PAGE + "See [BRK201][brk201].\n\n[brk201]: reference/brk201.md\n")
 
     assert docs_problems(tmp_path) == [
-        "index.md: links to reference/msn201.md, which doesn't exist"
+        "index.md: links to reference/brk201.md, which doesn't exist"
     ]
 
 
 def test_a_link_out_of_the_docs_folder_is_a_problem(tmp_path: Path):
-    write(tmp_path.parent / "README.md", "# Mason\n")
+    write(tmp_path.parent / "README.md", "# Brickie\n")
     write(tmp_path / "index.md", PAGE + "See [the README](../README.md).\n")
 
     assert docs_problems(tmp_path) == [
@@ -142,14 +142,14 @@ def test_a_link_out_of_the_docs_folder_is_a_problem(tmp_path: Path):
 def test_links_shown_as_code_are_not_checked(tmp_path: Path):
     write(
         tmp_path / "index.md",
-        PAGE + "Write `[MSN201](msn201.md)`, like this:\n\n```md\n![Figure](nope.svg)\n```\n",
+        PAGE + "Write `[BRK201](brk201.md)`, like this:\n\n```md\n![Figure](nope.svg)\n```\n",
     )
 
     assert docs_problems(tmp_path) == []
 
 
 def test_every_page_has_a_title_and_a_description(tmp_path: Path):
-    write(tmp_path / "index.md", "---\ntitle: Mason\n---\n\n# Mason\n")
+    write(tmp_path / "index.md", "---\ntitle: Brickie\n---\n\n# Brickie\n")
     write(tmp_path / "guides/add-a-source.md", "# Add a Source\n")
 
     assert docs_problems(tmp_path) == [
@@ -182,7 +182,7 @@ def test_a_figure_lives_in_figures(tmp_path: Path):
     ]
 
 
-KETTLE = Path(__file__).parent.parent / "src/mason/examples/kettle"
+KETTLE = Path(__file__).parent.parent / "src/brickie/examples/kettle"
 
 
 def test_every_block_titled_with_a_file_path_matches_that_file_in_kettle():
