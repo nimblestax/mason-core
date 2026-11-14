@@ -59,7 +59,7 @@ def test_a_release_missing_a_platform_is_refused_and_nothing_is_written(tmp_path
 
 def test_the_committed_pin_is_what_the_script_writes():
     """The committed file is never edited by hand, so it reads exactly as the script writes it."""
-    committed = Path(__file__).parents[1] / "src/mason/deploy/databricks_cli_release.py"
+    committed = Path(__file__).parents[1] / "src/brickie/deploy/databricks_cli_release.py"
     pinned = runpy.run_path(str(committed))
     script = runpy.run_path(str(PIN))
 

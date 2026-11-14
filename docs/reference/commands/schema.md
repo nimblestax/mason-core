@@ -1,12 +1,12 @@
 ---
-title: mason schema
-description: Print a Kind's fields from the installed Mason. Needs no project.
+title: brickie schema
+description: Print a Kind's fields from the installed Brickie. Needs no project.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
 ```console
-$ mason schema <kind> [OPTIONS]
+$ brickie schema <kind> [OPTIONS]
 ```
 
 ## Arguments
@@ -23,12 +23,12 @@ $ mason schema <kind> [OPTIONS]
 
 ## JSON result
 
-With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.schema/1`. When it succeeds, `result` is:
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `brickie.schema/1`. When it succeeds, `result` is:
 
 | Field | Type | Meaning |
 | --- | --- | --- |
 | `kind` | string | The Kind described. |
-| `version` | integer | The newest version of the Kind this Mason supports. |
+| `version` | integer | The newest version of the Kind this Brickie supports. |
 | `json_schema` | object | The Kind's JSON Schema at that version. |
 
 ## Exit codes

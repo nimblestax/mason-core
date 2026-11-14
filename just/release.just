@@ -22,8 +22,8 @@ publish:
 # Create the GitHub Release for a tag, with the wheel and that version's changelog section.
 github tag:
     uv run python scripts/release.py notes {{trim_start_match(tag, "v")}} > dist/notes.md
-    gh release create {{tag}} dist/*.whl --title "Mason {{trim_start_match(tag, "v")}}" --notes-file dist/notes.md
+    gh release create {{tag}} dist/*.whl --title "Brickie {{trim_start_match(tag, "v")}}" --notes-file dist/notes.md
 
-# Pin the Databricks CLI version Mason runs, with each platform's checksum. Commit what changes.
+# Pin the Databricks CLI version Brickie runs, with each platform's checksum. Commit what changes.
 pin-cli version:
     uv run python scripts/pin_databricks_cli.py {{version}}

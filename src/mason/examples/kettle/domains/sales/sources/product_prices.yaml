@@ -1,5 +1,0 @@
-# yaml-language-server: $schema=../../../.mason/schemas/source.v1.json
-kind: source
-version: 1
-path: /Volumes/{env}_sales/bronze/landing/product_prices
-format: json

@@ -7,20 +7,20 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason.cli import app
+from brickie.cli import app
 
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
 @pytest.fixture
 def project(tmp_path: Path) -> Path:
-    """The project `mason init` writes, with `finance` and `shared` Domains beside `sales`."""
+    """The project `brickie init` writes, with `finance` and `shared` Domains beside `sales`."""
     assert runner.invoke(app, ["init", str(tmp_path)]).exit_code == 0
-    platform = tmp_path / "mason.platform.yaml"
+    platform = tmp_path / "brickie.platform.yaml"
     platform.write_text(
         platform.read_text().replace("  - sales\n", "  - sales\n  - finance\n  - shared\n")
     )
@@ -45,13 +45,13 @@ def write_model(project: Path, domain: str, name: str, query: str) -> str:
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
 
 def assert_passes(project: Path) -> None:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 0, result.output
 
 
@@ -62,7 +62,7 @@ def test_reading_another_domains_gold_fails_and_its_exported_silver_passes(proje
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
     assert failure["name"] == "cross-domain-read"
     assert failure["file"] == file
     assert failure["line"] == 1
@@ -88,7 +88,7 @@ def test_the_shared_domain_does_not_read_a_domains_gold(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
     assert failure["file"] == file
     assert "sales.gold.fct_orders" in failure["message"]
 
@@ -99,7 +99,7 @@ def test_another_domains_private_silver_fails_naming_export_as_the_fix(project: 
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
     assert failure["file"] == file
     assert "finance.silver.invoices" in failure["message"]
     assert "hasn't Exported" in failure["message"]
@@ -136,7 +136,7 @@ def test_the_shared_domain_does_not_read_a_domains_private_silver(project: Path)
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
     assert "sales.silver.orders" in failure["message"]
 
 
@@ -146,7 +146,7 @@ def test_the_shared_domains_silver_is_private_like_any_domains(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
 
 
 def test_an_exported_sources_quarantine_table_stays_private(project: Path):
@@ -161,7 +161,7 @@ def test_an_exported_sources_quarantine_table_stays_private(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
     assert "finance.silver.invoices_quarantine" in failure["message"]
 
 
@@ -179,7 +179,7 @@ def test_another_domains_seed_is_read_only_once_exported(project: Path):
     write_model(project, "sales", "fct_costs", "SELECT * FROM finance.silver.cost_centres")
 
     [failure] = failures(project)
-    assert failure["rule"] == "MSN209"
+    assert failure["rule"] == "BRK209"
 
     write_seed(project, "finance", "cost_centres", "export: true\n")
 
@@ -191,7 +191,7 @@ def test_a_gold_model_reading_its_own_domains_bronze_fails_naming_silver(project
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN210"
+    assert failure["rule"] == "BRK210"
     assert failure["name"] == "read-against-build-order"
     assert failure["file"] == file
     assert failure["line"] == 2
@@ -205,7 +205,7 @@ def test_another_domains_bronze_fails_once_against_the_build_order(project: Path
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN210"
+    assert failure["rule"] == "BRK210"
 
 
 UPSERT = "silver:\n  keys: [id]\n  sequence_by: updated_at\n"
@@ -220,7 +220,7 @@ def test_a_stream_of_upsert_silver_fails_and_a_batch_read_passes(project: Path, 
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN211"
+    assert failure["rule"] == "BRK211"
     assert failure["name"] == "stream-of-upsert-silver"
     assert failure["file"] == file
     assert failure["line"] == 2
@@ -246,11 +246,11 @@ def test_a_stream_of_another_domains_exported_upsert_silver_fails(project: Path)
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN211"
+    assert failure["rule"] == "BRK211"
 
 
 def test_domains_reading_each_others_gold_fail_on_each_read_not_as_a_loop(project: Path):
     write_model(project, "sales", "fct_a", "SELECT * FROM finance.gold.fct_b")
     write_model(project, "finance", "fct_b", "SELECT * FROM sales.gold.fct_a")
 
-    assert sorted(failure["rule"] for failure in failures(project)) == ["MSN209", "MSN209"]
+    assert sorted(failure["rule"] for failure in failures(project)) == ["BRK209", "BRK209"]

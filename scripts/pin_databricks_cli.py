@@ -1,9 +1,9 @@
-"""Pin the Databricks CLI version Mason runs, with each platform's checksum.
+"""Pin the Databricks CLI version Brickie runs, with each platform's checksum.
 
     pin_databricks_cli.py <version>
 
 Reads the checksums Databricks publishes with that release and writes them, with the version,
-into Mason. Commit what changes, so bumping the CLI is one pull request.
+into Brickie. Commit what changes, so bumping the CLI is one pull request.
 """
 
 import argparse
@@ -12,7 +12,7 @@ import urllib.request
 from pathlib import Path
 
 RELEASES = "https://github.com/databricks/cli/releases/download"
-PINNED = Path(__file__).parents[1] / "src/mason/deploy/databricks_cli_release.py"
+PINNED = Path(__file__).parents[1] / "src/brickie/deploy/databricks_cli_release.py"
 
 # Every platform Databricks publishes a CLI for. A release missing one is refused.
 PLATFORMS = [
@@ -49,7 +49,7 @@ def checksums(releases: str, version: str) -> dict[str, str]:
 def render(version: str, pinned: dict[str, str]) -> str:
     rows = "".join(f'    "{name}": "{checksum}",\n' for name, checksum in pinned.items())
     return (
-        '"""The Databricks CLI this Mason release runs. Written by `just release::pin-cli`;'
+        '"""The Databricks CLI this Brickie release runs. Written by `just release::pin-cli`;'
         ' don\'t edit."""\n'
         "\n"
         f'VERSION = "{version}"\n'

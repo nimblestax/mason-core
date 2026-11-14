@@ -5,10 +5,10 @@ description: The row-level rules a source's silver is checked against, which row
 
 An expectation is a rule on one row of a source's silver table. A row meets it only when its `expect` condition is true. False or NULL is a failure.
 
-In Kettle, the tea shop that `mason init --example kettle` writes, every customer needs an email:
+In Kettle, the tea shop that `brickie init --example kettle` writes, every customer needs an email:
 
 ```yaml title="domains/sales/sources/customers.yaml"
-# yaml-language-server: $schema=../../../.mason/schemas/source.v1.json
+# yaml-language-server: $schema=../../../.brickie/schemas/source.v1.json
 kind: source
 version: 1
 path: /Volumes/{env}_sales/bronze/landing/customers

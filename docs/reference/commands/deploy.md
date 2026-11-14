@@ -1,12 +1,12 @@
 ---
-title: mason deploy
+title: brickie deploy
 description: Deploy to an Environment and refresh its tables.
 generated: true
-mason_version: 0.3.0
+brickie_version: 0.1.0
 ---
 
 ```console
-$ mason deploy [OPTIONS]
+$ brickie deploy [OPTIONS]
 ```
 
 ## Options
@@ -19,7 +19,7 @@ $ mason deploy [OPTIONS]
 
 ## JSON result
 
-With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `mason.deploy/1`. When it succeeds, `result` is:
+With `--json`, it prints the [envelope](../json-output.md) with `schema` set to `brickie.deploy/1`. When it succeeds, `result` is:
 
 | Field | Type | Meaning |
 | --- | --- | --- |

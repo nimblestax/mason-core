@@ -6,14 +6,14 @@ from pathlib import Path
 import pytest
 from typer.testing import CliRunner
 
-from mason.cli import app
+from brickie.cli import app
 
-PLATFORM = "mason.platform.yaml"
+PLATFORM = "brickie.platform.yaml"
 
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -24,7 +24,7 @@ def project(tmp_path: Path) -> Path:
 
 
 def failures(project: Path, rule: str) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return [d for d in json.loads(result.stdout)["diagnostics"] if d["rule"] == rule]
 
@@ -36,7 +36,7 @@ def list_domains(project: Path, *domains: str) -> None:
 
 
 def compiled(project: Path) -> str:
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
     assert result.exit_code == 0, result.output
     return result.stdout
 
@@ -61,7 +61,7 @@ def test_a_name_with_both_a_yaml_and_a_yml_file_fails_once(project: Path, folder
     for suffix in (".yaml", ".yml"):
         (project / "domains/sales" / folder / f"extra{suffix}").write_text("kind: source\n")
 
-    [failure] = failures(project, "MSN120")
+    [failure] = failures(project, "BRK120")
 
     assert failure["name"] == "duplicate-config-file"
     assert failure["file"] == f"domains/sales/{folder}/extra.yml"
@@ -71,7 +71,7 @@ def test_a_name_with_both_a_yaml_and_a_yml_file_fails_once(project: Path, folder
 def test_a_domain_folder_the_platform_contract_does_not_list_fails(project: Path):
     (project / "domains/hr/sources").mkdir(parents=True)
 
-    [failure] = failures(project, "MSN121")
+    [failure] = failures(project, "BRK121")
 
     assert failure["name"] == "unlisted-domain-folder"
     assert failure["file"] == "domains/hr"
@@ -82,7 +82,7 @@ def test_a_domain_folder_the_platform_contract_does_not_list_fails(project: Path
 def test_a_domain_listed_in_another_case_does_not_name_its_folder(project: Path):
     list_domains(project, "Sales")
 
-    [failure] = failures(project, "MSN121")
+    [failure] = failures(project, "BRK121")
 
     assert failure["file"] == "domains/sales"
     assert "Sales" in failure["message"]
@@ -94,6 +94,6 @@ def test_every_listed_domain_folder_and_yaml_file_passes(project: Path):
     list_domains(project, "sales", "hr")
     (project / "domains/.DS_Store").write_text("")
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output

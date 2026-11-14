@@ -1,102 +1,40 @@
 ---
 title: Changelog
-description: What changed in each release of Mason, newest first.
+description: What changed in each release of Brickie, newest first.
 ---
 
-Every release of Mason, newest first. Each section is also that release's notes on GitHub.
+Every release of Brickie, newest first. Each section is also that release's notes on GitHub.
 
 Each pull request that changes what you see adds its line under Unreleased, so each release's section is built up by its pull requests. A release renames Unreleased to its version.
 
-Mason follows [Semantic Versioning](https://semver.org). Before 1.0, a minor release, such as 0.2.0, may change config or commands in ways that need edits to your project, and its section here says what to change. A patch release, such as 0.2.1, never does.
+Brickie follows [Semantic Versioning](https://semver.org). Before 1.0, a minor release, such as 0.2.0, may change config or commands in ways that need edits to your project, and its section here says what to change. A patch release, such as 0.2.1, never does.
 
 ## Unreleased
 
-- The reference has a [Rules index](reference/rules/index.md): every Rule, in a table per series, with what it checks. A command with subcommands has one page, with a section for each, so `mason skills update` is now on [`mason skills`](reference/commands/skills.md#update). The JSON output page links the index instead of listing every Rule.
-- A gold model that reads `STREAM(...)` compiles to a streaming table. Before, every gold model compiled to a materialized view, so one that streamed passed `mason validate` and failed at deploy. Any other gold model is still a materialized view. No project needs a change. See [How Mason reads a gold model's SQL](concepts/how-mason-reads-a-gold-models-sql.md).
-  - New rule: [`MSN212`](reference/rules/msn212.md) `stream-of-materialized-view`. A stream from a seed, or from a gold model that doesn't stream, fails `mason validate`.
-- `mason init --example kettle` writes Kettle, the fictional tea shop every docs page draws its examples from, with two days of sample data in `data/day-1/` and `data/day-2/`. It prints the commands that upload day 1 to each source's path in dev. Day 2 adds new orders, a customer who moved, a deleted customer, a price change and an order that goes to quarantine. Kettle ships inside Mason, so it always matches the version you have installed. See [`mason init`](reference/commands/init.md).
-  - An example Mason doesn't ship fails with [`MSN916`](reference/rules/msn916.md) `unknown-example`, which lists the examples. It exits 2.
-- `mason init` lists the Volumes the project's sources read in dev with the catalogs and schemas to create, and in `volumes` in its JSON result.
-- Mason brings its own Databricks CLI, version 1.23.0, and never runs the `databricks` on your PATH. It downloads it the first time a command needs it, checks it against its checksum, and caches it. See [The Databricks CLI](concepts/the-databricks-cli.md).
-  - `mason --version` prints Mason's version and the CLI version it runs.
-  - `mason databricks <arguments>` runs that CLI, so you don't need one of your own.
-  - `MASON_DATABRICKS_CLI` points Mason at a CLI you installed yourself, for a machine that can't download one.
-  - New rules: MSN910 `databricks-cli-checksum-mismatch`, MSN911 `databricks-cli-unsupported`, MSN912 `databricks-cli-download-failed` and MSN913 `no-databricks-cli-for-platform`. MSN903 `databricks-cli-missing` now means `MASON_DATABRICKS_CLI` names a CLI Mason can't run.
-- The workflows `mason init --ci github` writes no longer install the Databricks CLI.
-- `mason validate --platform` signs in to an environment's workspace and checks that the catalogs and schemas the project needs are there, before a deploy. It checks the default environment, or the one `--env` names. Plain `mason validate` still reads no workspace. See [Naming](concepts/naming.md).
-  - New rules: [`MSN301`](reference/rules/msn301.md) `missing-catalog` and [`MSN302`](reference/rules/msn302.md) `missing-schema`. Each exits 1.
-  - The workflows `mason init --ci github` writes run `mason validate --platform --env dev`. The pull request job now signs in as dev's identity, through the `dev` GitHub environment.
-- A diagnostic's `severity` can now be `warning`. A warning never fails a command, and a command that succeeds lists its warnings in `diagnostics`.
-- `mason.platform.yaml` keeps the naming style by name, as `naming.style`, in version 2 of the `platform` Kind. Hand-edited `catalog` and `schema` patterns are no longer accepted. `mason init` writes version 2, with a comment that lists the three styles. See [Naming](concepts/naming.md).
-  - A version 1 file still works when its patterns match a style, and Mason reads it as that style. Patterns that match none fail with [`MSN124`](reference/rules/msn124.md) `naming-patterns-not-supported`, which names the closest style.
-  - The source layers are always `bronze` and `silver`. A version 1 file that names others fails with [`MSN125`](reference/rules/msn125.md) `source-layers-fixed`.
-- Model layers have no order, and a gold model's folder is the only thing that sets its layer. See [Domains and layers](concepts/domains-and-layers.md).
-  - A gold model can read any model layer in its own domain, in either direction. A loop of reads across model layers fails with [`MSN208`](reference/rules/msn208.md).
-  - A model layer called `bronze` or `silver` fails with [`MSN126`](reference/rules/msn126.md) `model-layer-named-like-a-source-layer`.
-  - A gold model's layer is always the first folder under `models/`. A file directly in `models/`, or in a folder that isn't a model layer, fails with [`MSN127`](reference/rules/msn127.md) `model-outside-a-layer`. Before, a file directly in `models/` went into the last model layer, and a folder that wasn't a model layer was skipped without a word.
-  - Folders under `sources/`, `seeds/` and a model layer's folder are read at any depth, and only group files. Two files with one name in one domain's layer fail with [`MSN120`](reference/rules/msn120.md), naming both.
-  - A domain can be a source system, such as `salesforce`, with gold in business domains that read its exported silver.
-- Each Environment's Job waits only where one pipeline reads another's tables. A domain's gold waits for the ingest pipelines whose silver it reads, its own or another domain's exported silver, and for the shared domain's gold if it reads it. A failed pipeline skips only what reads from it, so an unrelated domain still refreshes. Before, a domain's gold always waited for its own ingest and never for another domain's.
-- Pipeline and Job names carry the Environment, such as `kettle_dev_sales_ingest` and `kettle_dev_refresh`, so dev, test and prod can share one workspace. Before, a second Environment in the same workspace failed to deploy, because Databricks refuses a second pipeline with the same name. The next deploy renames each Environment's pipelines and Job in place.
-- An Environment can refresh on a schedule, set as `schedule` in `mason.platform.yaml`. A schedule runs in prod and is paused in every other Environment unless it sets `paused: false`. See [Schedule refreshes](guides/schedule-refreshes.md).
-- `mason init` writes Mason skills for coding agents, `mason-add-source` and `mason-add-model`, into `.agents/skills/` and an identical copy in `.claude/skills/`. It adds only `mason-*` folders, and leaves one that exists alone. `--skills none` writes none. See [Mason skills](concepts/mason-skills.md).
-  - `mason validate` warns when a skill was written by another Mason version, with [`MSN129`](reference/rules/msn129.md) `skill-version-drift`.
-  - `mason skills update` refreshes both copies of each skill. It stops on a skill you edited and shows the difference, with [`MSN915`](reference/rules/msn915.md) `skill-edited`, unless you pass `--force`.
-  - `mason init` warns when Git ignores a skills folder, with [`MSN914`](reference/rules/msn914.md) `skills-folder-ignored`.
-- Environments can be named freely, and carry a role: `role: development` on exactly one, and `role: production` on at most one. Any other environment is a stage, and you can add as many as you need. An environment's name is what appears in its catalogs, so `prd` gives `prd_sales.silver.orders`. Mason no longer reads meaning into the names `dev` and `prod`. See [Environments](concepts/environments.md).
-  - Commands that read default to the development environment, and an environment without a `host` uses its host. MSN122 now means the development environment has no `host`.
-  - A schedule runs in the production environment and is paused elsewhere.
-  - `mason init` writes `role: development` on `dev`. A version 1 file needs no change: Mason gives `dev` the development role and `prod` the production role.
-  - New rules: [`MSN130`](reference/rules/msn130.md) `no-development-environment`, [`MSN131`](reference/rules/msn131.md) `two-environments-with-one-role` and [`MSN132`](reference/rules/msn132.md) `environment-name-not-an-identifier`.
-
-**What to change:** delete the `databricks/setup-cli` step from `.github/workflows/mason-merge.yaml`. It does no harm, but Mason no longer uses that CLI.
-
-**What to change:** to check the platform in CI, change `mason validate` to `mason validate --platform --env dev` in both workflows. In `.github/workflows/mason-pull-request.yaml`, also add `id-token: write` under `permissions`, the `DATABRICKS_AUTH_TYPE` and `DATABRICKS_CLIENT_ID` lines under `env` from `mason-merge.yaml`, and `environment: dev` on the `validate` job.
-
-A version 1 `mason.platform.yaml` whose patterns match a style needs no change yet. To move it to version 2, set `version: 2`, replace `catalog` and `schema` under `naming` with `style`, delete `naming.layers.sources`, and add `role: development` under `dev` and `role: production` under `prod`. Use the style your patterns match, so no table moves: `{env}_{domain}` / `{layer}` is `domain-catalogs`, `{env}_{layer}` / `{domain}` is `layer-catalogs`, and `{env}` / `{domain}_{layer}` is `environment-catalogs`. Then point the schema comment on the first line at `.mason/schemas/platform.v2.json`, and copy that file from a project `mason init` creates, so your editor checks the new fields. If you see `MSN124`, your patterns match no style: see [When none of these fit](concepts/naming.md#when-none-of-these-fit) before you pick one, because a new style moves every table.
-
-A project that passed `mason validate` before can also fail it on this:
-
-- MSN127: move each gold model that sits directly in `domains/<domain>/models/` into `domains/<domain>/models/gold/`, or into the folder of the model layer it belongs to. A model moved into the last model layer, where it used to land, keeps its table.
-
-## 0.3.0
-
-- In `mason.platform.yaml`, test and prod use dev's `host` unless they set their own, so a project on one workspace sets `host` once. Every project now has a dev Environment with a `host`, checked by [`MSN122`](reference/rules/msn122.md).
-- One Environment may set `default: true`, and commands that read use it when `--env` is left out. With none, dev is the default. Two defaults fail with [`MSN123`](reference/rules/msn123.md).
-- `mason deploy` without `--env` says to add one, and exits 2. A deploy never uses the default Environment.
-- Each Rule's reference page links to the Nimblestax Way principle behind it by that principle's current name. [`MSN201`](reference/rules/msn201.md) and [`MSN205`](reference/rules/msn205.md) now link to Code names tables logically; Mason resolves the environment. [`MSN116`](reference/rules/msn116.md) and [`MSN907`](reference/rules/msn907.md) link to No row disappears silently.
-
-**What to change:** a project that passed `mason validate` on 0.2.0 can fail it on 0.3.0. Run `mason validate` and fix what it reports:
-
-- MSN122: add `host` under `environments.dev`, set to dev's workspace URL. If your Environments have other names, rename the one you develop in to `dev`.
-
-## 0.2.0
-
-- `mason init` takes the project folder as an argument, `mason init sales-platform`, and creates it. With no folder it uses the current one. `mason init --project <folder>` is gone: write `mason init <folder>` instead. The other commands keep `--project`.
-- `mason init` refuses a folder that already holds `mason.platform.yaml`, with [`MSN909`](reference/rules/msn909.md), and writes nothing. Before, it replaced the Platform Contract and every starter file.
-- `mason init` asks where your tables live and offers three naming styles: `domain-catalogs` (`dev_sales.silver.orders`, the default), `layer-catalogs` (`dev_silver.sales.orders`) and `environment-catalogs` (`dev.sales_silver.orders`).
-- `mason validate` checks that tables are read in build order: bronze, then silver, then gold.
-  - MSN209 `cross-domain-read`: a gold model reads another domain's gold, or silver that domain hasn't exported. A domain exports silver with `export: true`. Gold in the shared domain, the domain called `shared`, is the one gold every domain may read.
-  - MSN210 `read-against-build-order`: a gold model reads bronze.
-  - MSN211 `stream-of-upsert-silver`: a gold model reads silver that has `keys` with `STREAM(...)`. Upserts change rows in place, so the stream fails after a change.
-- Every Kind and every command has its own reference page, and the JSON output page describes each command's `--json` result.
-
-**What to change:** replace `mason init --project <folder>` with `mason init <folder>` in any script. A project that passed `mason validate` on 0.1.0 can fail it on 0.2.0. Run `mason validate` and fix what it reports:
-
-- MSN209: read silver the other domain has exported, or ask its owner to export it. To share a gold model, move it into the shared domain.
-- MSN210: read the silver table of the same name, which the diagnostic gives.
-- MSN211: read the table without `STREAM(...)`, as `FROM sales.silver.orders`. The gold model becomes a materialized view, which Databricks refreshes incrementally where it can.
-
 ## 0.1.0
 
-The first release. Install it into your project with `uv add --dev mason-databricks`.
+The first release. Install it into your project with `uv add --dev brickie-core`.
 
-- `mason init` creates a working project, with GitHub Actions workflows.
-- `mason validate` checks config and SQL with no workspace. A Model's dependencies come from its SQL, and anything Mason can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
-- `mason compile` writes the generated code, or prints it for one Environment.
-- `mason deploy` deploys to an Environment and refreshes its tables. When a refresh fails, it says why.
-- `mason schema` prints any Kind's fields.
-- A Source lands in bronze, and silver either appends it or upserts it by `keys` and `sequence_by`, with Type 1 or Type 2 history and `delete_when` for deletes.
+- [`brickie init`](reference/commands/init.md) creates a project folder and asks where your tables live: `domain-catalogs` (`dev_sales.silver.orders`, the default), `layer-catalogs` (`dev_silver.sales.orders`) or `environment-catalogs` (`dev.sales_silver.orders`). `brickie.platform.yaml` keeps that choice as `naming.style`. See [Naming](concepts/naming.md).
+  - It refuses a folder that already holds `brickie.platform.yaml`, with [`BRK909`](reference/rules/brk909.md), and writes nothing.
+  - `--ci github` adds GitHub Actions workflows, `.github/workflows/brickie-pull-request.yaml` and `.github/workflows/brickie-merge.yaml`. They install `brickie-core` at the version `BRICKIE_SPEC` names.
+  - It lists the Volumes the project's sources read in dev, with the catalogs and schemas to create.
+  - `--example kettle` writes Kettle, the fictional tea shop every docs page draws its examples from, with two days of sample data and the commands that upload day 1.
+- Environments are named freely and carry a role: `role: development` on exactly one, and `role: production` on at most one. Any other environment is a stage. Commands that read default to the development environment, and an environment without a `host` uses its host. See [Environments](concepts/environments.md).
+- [`brickie validate`](reference/commands/validate.md) checks config and SQL with no workspace. A gold model's dependencies come from its SQL, and anything Brickie can't read, such as `IDENTIFIER(...)`, is an error rather than a guess.
+  - Tables are read in build order. A gold model reads silver, a gold model in its own domain, another domain's exported silver, or gold in the shared domain. See [Domains and layers](concepts/domains-and-layers.md).
+  - Model layers have no order, and a gold model's folder sets its layer. A loop of reads across model layers fails.
+  - `--platform` signs in to an environment's workspace and checks that the catalogs and schemas the project needs are there.
+  - It warns when a skill was written by another Brickie version.
+- [`brickie compile`](reference/commands/compile.md) writes the generated code, or prints it for one environment. A gold model that reads `STREAM(...)` compiles to a streaming table, and any other gold model to a materialized view. See [How Brickie reads a gold model's SQL](concepts/how-brickie-reads-a-gold-models-sql.md).
+- [`brickie deploy`](reference/commands/deploy.md) deploys to the environment `--env` names and refreshes its tables. When a refresh fails, it says why. See [Recover from a failed refresh](guides/recover-from-a-failed-refresh.md).
+  - Each environment has one Job, named for it, such as `kettle_dev_refresh`. It waits only where one pipeline reads another's tables, so a failed pipeline skips only what reads from it.
+  - An environment can refresh on a schedule. A schedule runs in the production environment and is paused elsewhere. See [Schedule refreshes](guides/schedule-refreshes.md).
+- [`brickie schema`](reference/commands/schema.md) prints any Kind's fields.
+- A source lands in bronze, and silver either appends it or upserts it by `keys` and `sequence_by`, with Type 1 or Type 2 history and `delete_when` for deletes.
 - Seeds load small reference tables from CSV files in the repo.
-- Expectations check silver rows, and rows that fail are kept in Quarantine.
-- Every command has `--json` output, with rule IDs and fixed exit codes, and each rule has its own reference page.
+- Expectations check silver rows, and rows that fail are kept in quarantine. See [Expectations](concepts/expectations.md).
+- Brickie brings its own Databricks CLI, version 1.23.0, and never runs the `databricks` on your PATH. [`brickie databricks`](reference/commands/databricks.md) runs it, and `BRICKIE_DATABRICKS_CLI` points Brickie at one you installed yourself. See [The Databricks CLI](concepts/the-databricks-cli.md).
+- `brickie init` writes Brickie skills for coding agents, `brickie-add-source` and `brickie-add-model`, into `.agents/skills/` and `.claude/skills/`. [`brickie skills update`](reference/commands/skills.md#update) refreshes them. See [Brickie skills](concepts/brickie-skills.md).
+- Every command but `brickie databricks` has `--json` output, with Rule IDs and fixed exit codes. See [JSON output](reference/json-output.md).
+- Every Rule has its own reference page, listed in the [Rules index](reference/rules/index.md).

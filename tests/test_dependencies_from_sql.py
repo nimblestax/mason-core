@@ -1,4 +1,4 @@
-"""A Gold Model's reads come only from its SQL, and anything Mason can't read is an error."""
+"""A Gold Model's reads come only from its SQL, and anything Brickie can't read is an error."""
 
 import json
 import re
@@ -8,9 +8,9 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason import sql
-from mason.cli import app
-from mason.names import LogicalName
+from brickie import sql
+from brickie.cli import app
+from brickie.names import LogicalName
 
 ORDERS = LogicalName("sales", "silver", "orders")
 MODEL_SQL = "domains/sales/models/gold/fct_orders.sql"
@@ -18,7 +18,7 @@ MODEL_SQL = "domains/sales/models/gold/fct_orders.sql"
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -33,7 +33,7 @@ def write_model(project: Path, query: str) -> None:
 
 
 def failures(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
@@ -50,7 +50,7 @@ def test_a_cte_an_alias_and_a_stream_over_one_logical_name_are_one_read():
 def test_a_stream_read_compiles_to_the_real_table(project: Path):
     write_model(project, "SELECT order_id FROM STREAM(sales.silver.orders)")
 
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
     assert "FROM STREAM(dev_sales.silver.orders)" in result.stdout
@@ -61,7 +61,7 @@ def test_a_computed_table_name_fails_with_its_own_rule(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN204"
+    assert failure["rule"] == "BRK204"
     assert failure["name"] == "computed-table-name"
     assert failure["file"] == MODEL_SQL
     assert failure["line"] == 2
@@ -73,7 +73,7 @@ def test_sql_that_does_not_parse_fails_with_its_own_rule(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN203"
+    assert failure["rule"] == "BRK203"
     assert failure["name"] == "unparseable-sql"
     assert failure["line"] == 2
     assert failure["fix"]
@@ -84,7 +84,7 @@ def test_a_second_statement_fails_rather_than_hiding_its_reads(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN203"
+    assert failure["rule"] == "BRK203"
 
 
 @pytest.mark.parametrize(
@@ -102,7 +102,7 @@ def test_a_name_that_is_neither_a_cte_nor_a_logical_name_is_unresolved(
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN201"
+    assert failure["rule"] == "BRK201"
     assert failure["line"] == 2
     assert f"`{name}`" in failure["message"]
     assert "three-part Logical Name" in failure["fix"]
@@ -119,13 +119,13 @@ def test_ordinary_sql_with_ctes_and_aliases_validates(project: Path):
         """,
     )
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
 
 
 def test_a_real_table_name_fails_with_a_fix_naming_its_logical_name(project: Path):
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     platform.write_text(
         platform.read_text().replace(
             "environments:\n", "environments:\n  prod:\n    host: https://prod.example.com\n"
@@ -135,7 +135,7 @@ def test_a_real_table_name_fails_with_a_fix_naming_its_logical_name(project: Pat
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN205"
+    assert failure["rule"] == "BRK205"
     assert failure["name"] == "real-table-name"
     assert failure["line"] == 2
     assert "prod_sales.silver.orders" in failure["message"]
@@ -165,12 +165,12 @@ def test_a_statement_that_is_not_a_query_cannot_be_parsed_as_reads(statement: st
 
 
 @pytest.mark.parametrize("query", [query for _, query in NOT_QUERIES])
-def test_a_statement_that_is_not_a_query_fails_with_only_msn203(project: Path, query: str):
+def test_a_statement_that_is_not_a_query_fails_with_only_brk203(project: Path, query: str):
     write_model(project, query)
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN203"
+    assert failure["rule"] == "BRK203"
     assert failure["fix"] == "Make the file one Databricks SQL query that runs on its own."
 
 
@@ -189,7 +189,7 @@ def test_a_statement_that_is_not_a_query_fails_with_only_msn203(project: Path, q
 def test_every_kind_of_query_validates(project: Path, query: str):
     write_model(project, query)
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
 
@@ -215,8 +215,8 @@ def test_a_hint_is_never_a_read_and_compiles_unchanged(project: Path, hint: str)
     write_model(project, query)
 
     assert sql.reads(query) == {ORDERS, LogicalName("sales", "gold", "dim_date")}
-    assert mason(project, "validate", "--json").exit_code == 0
-    compiled = mason(project, "compile", "--env", "dev")
+    assert brickie(project, "validate", "--json").exit_code == 0
+    compiled = brickie(project, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
     assert hint in compiled.stdout
 
@@ -228,7 +228,7 @@ def test_a_hint_naming_a_cte_validates(project: Path):
         "SELECT /*+ BROADCAST(recent) */ * FROM sales.gold.dim_date JOIN recent USING (order_id)",
     )
 
-    assert mason(project, "validate", "--json").exit_code == 0
+    assert brickie(project, "validate", "--json").exit_code == 0
 
 
 def test_a_logical_name_in_a_hint_compiles_like_the_join_it_names(project: Path):
@@ -239,7 +239,7 @@ def test_a_logical_name_in_a_hint_compiles_like_the_join_it_names(project: Path)
         "WHERE o.note <> 'sales.bronze.orders'",
     )
 
-    result = mason(project, "compile", "--env", "dev")
+    result = brickie(project, "compile", "--env", "dev")
 
     assert result.exit_code == 0, result.output
     assert "/*+ BROADCAST(dev_sales.bronze.orders) */" in result.stdout
@@ -253,20 +253,20 @@ def test_a_hint_does_not_hide_a_bad_read(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN201"
+    assert failure["rule"] == "BRK201"
     assert "sales.silver.ordrs" in failure["message"]
 
 
 def test_broken_hint_syntax_is_ignored_like_any_hint(project: Path):
     write_model(project, f"SELECT /*+ BROADCAST(c */ o.order_id\n{JOINED}")
 
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
 
     assert result.exit_code == 0, result.output
 
 
 def add_environment(project: Path, env: str) -> None:
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     platform.write_text(
         platform.read_text().replace(
             "environments:\n", f"environments:\n  {env}:\n    host: https://{env}.example.com\n"
@@ -277,10 +277,10 @@ def add_environment(project: Path, env: str) -> None:
 def compiles_in_every_environment(project: Path) -> list[str]:
     outputs = []
     for env in ("dev", "prod"):
-        result = mason(project, "compile", "--env", env)
+        result = brickie(project, "compile", "--env", env)
         assert result.exit_code == 0, result.output
         outputs.append(result.stdout)
-    assert mason(project, "compile").exit_code == 0
+    assert brickie(project, "compile").exit_code == 0
     return outputs
 
 
@@ -298,7 +298,7 @@ def test_names_match_whatever_their_case(project: Path, query: str):
     write_model(project, query)
 
     assert sql.reads(query) == {ORDERS}
-    assert mason(project, "validate", "--json").exit_code == 0
+    assert brickie(project, "validate", "--json").exit_code == 0
     dev, prod = compiles_in_every_environment(project)
     assert "dev_sales.silver.orders" in dev
     assert "prod_sales.silver.orders" in prod
@@ -309,17 +309,17 @@ def test_a_source_file_with_capitals_is_read_in_lowercase(project: Path):
     sources = project / "domains/sales/sources"
     (sources / "orders.yaml").rename(sources / "Orders.yaml")
 
-    assert mason(project, "validate", "--json").exit_code == 0, failures(project)
+    assert brickie(project, "validate", "--json").exit_code == 0, failures(project)
     compiles_in_every_environment(project)
 
 
 def test_a_domain_with_capitals_is_read_in_lowercase(project: Path):
     add_environment(project, "prod")
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     platform.write_text(platform.read_text().replace("  - sales\n", "  - Sales\n"))
     (project / "domains/sales").rename(project / "domains/Sales")
 
-    assert mason(project, "validate", "--json").exit_code == 0, failures(project)
+    assert brickie(project, "validate", "--json").exit_code == 0, failures(project)
     dev, prod = compiles_in_every_environment(project)
     assert "dev_Sales.silver.orders" in dev
     assert "prod_Sales.silver.orders" in prod
@@ -334,7 +334,7 @@ def test_a_real_table_name_in_capitals_points_to_its_logical_name(project: Path)
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN205"
+    assert failure["rule"] == "BRK205"
     assert "PROD_SALES.silver.orders is a real table name" in failure["message"]
     assert "sales.silver.orders" in failure["fix"]
 
@@ -344,7 +344,7 @@ def test_a_typo_in_capitals_is_still_unresolved(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN201"
+    assert failure["rule"] == "BRK201"
     assert "Sales.Silver.Ordrs" in failure["message"]
 
 
@@ -353,7 +353,7 @@ def test_a_cte_body_reading_its_own_name_in_another_case_is_unresolved(project: 
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN201"
+    assert failure["rule"] == "BRK201"
     assert failure["line"] == 2
 
 
@@ -363,7 +363,7 @@ def test_one_table_in_two_cases_is_one_read_and_one_typo_is_reported_once(projec
 
     write_model(project, "SELECT * FROM sales.silver.ordrs JOIN Sales.Silver.ORDRS USING (id)")
     [failure] = failures(project)
-    assert failure["rule"] == "MSN201"
+    assert failure["rule"] == "BRK201"
 
 
 NAMING_STYLES = {
@@ -377,7 +377,7 @@ def finance(project: Path, request) -> tuple[Path, str, str]:
     """A `finance` Domain holding the Source `invoices` and the Model `fct_invoices`."""
     silver, gold = NAMING_STYLES[request.param]
     add_environment(project, "prod")
-    platform = project / "mason.platform.yaml"
+    platform = project / "brickie.platform.yaml"
     text = platform.read_text().replace("style: domain-catalogs", f"style: {request.param}")
     platform.write_text(text.replace("  - sales\n", "  - sales\n  - finance\n"))
     folder = project / "domains/finance"
@@ -410,7 +410,7 @@ def test_a_real_name_of_a_table_in_the_project_points_to_its_logical_name(
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN205"
+    assert failure["rule"] == "BRK205"
     assert f"Use its Logical Name, {logical}," in failure["fix"]
 
 
@@ -424,7 +424,7 @@ def test_a_real_name_of_a_table_not_in_the_project_does_not_suggest_it(
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN205"
+    assert failure["rule"] == "BRK205"
     assert failure["message"] == (
         f"{real} is a real table name, and no table called finance.silver.nope is in this project."
     )
@@ -459,11 +459,11 @@ def test_a_gold_model_cannot_read_files_or_external_data(project: Path, function
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN206"
+    assert failure["rule"] == "BRK206"
     assert failure["name"] == "file-read"
     assert failure["message"] == (
         f"{function} reads data that isn't a table in this project,"
-        " so Mason can't check it or point it at each Environment."
+        " so Brickie can't check it or point it at each Environment."
     )
     assert failure["fix"] == (
         "A Gold Model reads tables. Declare a Source for these files"
@@ -480,7 +480,7 @@ def test_a_file_read_joined_to_a_good_read_is_the_only_problem(project: Path):
 
     [failure] = failures(project)
 
-    assert failure["rule"] == "MSN206"
+    assert failure["rule"] == "BRK206"
     assert failure["line"] == 2
     assert sql.reads(query) == {ORDERS}
 
@@ -507,7 +507,7 @@ def test_a_file_read_joined_to_a_good_read_is_the_only_problem(project: Path):
 def test_a_function_that_reads_nothing_is_allowed_and_compiles_unchanged(project: Path, query: str):
     write_model(project, query)
 
-    assert mason(project, "validate", "--json").exit_code == 0, failures(project)
-    compiled = mason(project, "compile", "--env", "dev")
+    assert brickie(project, "validate", "--json").exit_code == 0, failures(project)
+    compiled = brickie(project, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
     assert query.replace("sales.silver.orders", "dev_sales.silver.orders") in compiled.stdout

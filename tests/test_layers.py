@@ -7,14 +7,14 @@ import pytest
 import yaml
 from typer.testing import CliRunner
 
-from mason.cli import app
+from brickie.cli import app
 
-PLATFORM = "mason.platform.yaml"
+PLATFORM = "brickie.platform.yaml"
 
 runner = CliRunner()
 
 
-def mason(project: Path, *args: str):
+def brickie(project: Path, *args: str):
     return runner.invoke(app, [*args, "--project", str(project)])
 
 
@@ -38,13 +38,13 @@ def write_model(project: Path, path: str, query: str) -> None:
 
 
 def diagnostics(project: Path) -> list[dict]:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 1, result.output
     return json.loads(result.stdout)["diagnostics"]
 
 
 def passes(project: Path) -> None:
-    result = mason(project, "validate", "--json")
+    result = brickie(project, "validate", "--json")
     assert result.exit_code == 0, result.output
 
 
@@ -54,24 +54,24 @@ def test_a_model_in_a_second_layer_resolves_and_reads_gold(project: Path):
     write_model(project, "sales/models/gold/y.yaml", "SELECT * FROM sales.marts.x")
 
     passes(project)
-    compiled = mason(project, "compile", "--env", "dev")
+    compiled = brickie(project, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
     assert "MATERIALIZED VIEW dev_sales.marts.x" in compiled.stdout
 
 
-def test_a_loop_across_model_layers_fails_with_msn208(project: Path):
+def test_a_loop_across_model_layers_fails_with_brk208(project: Path):
     set_model_layers(project, "gold", "marts")
     write_model(project, "sales/models/gold/a.yaml", "SELECT * FROM sales.marts.b")
     write_model(project, "sales/models/marts/b.yaml", "SELECT * FROM sales.gold.a")
 
     [failure] = diagnostics(project)
 
-    assert failure["rule"] == "MSN208"
+    assert failure["rule"] == "BRK208"
     assert "sales.gold.a → sales.marts.b → sales.gold.a" in failure["message"]
 
 
 def write_version_1_contract(project: Path, sources: str) -> None:
-    """`mason.platform.yaml` as Mason 0.3.0 wrote it, with its own `naming.layers.sources`."""
+    """`brickie.platform.yaml` at version 1, with its own `naming.layers.sources`."""
     (project / PLATFORM).write_text(
         "kind: platform\nversion: 1\nname: shop\nenvironments:\n  dev:\n"
         "    host: https://your-workspace.cloud.databricks.com\n"
@@ -90,7 +90,7 @@ def test_source_layers_other_than_bronze_and_silver_fail_and_point_to_a_model_la
 
     [failure] = diagnostics(project)
 
-    assert failure["rule"] == "MSN125"
+    assert failure["rule"] == "BRK125"
     assert failure["file"] == PLATFORM
     assert "bronze and silver" in failure["message"]
     assert "naming.layers.models" in failure["fix"]
@@ -113,7 +113,7 @@ def test_a_model_layer_named_like_a_source_layer_fails(project: Path, layer: str
 
     [failure] = diagnostics(project)
 
-    assert failure["rule"] == "MSN126"
+    assert failure["rule"] == "BRK126"
     assert failure["name"] == "model-layer-named-like-a-source-layer"
     assert failure["file"] == PLATFORM
     assert layer in failure["message"]
@@ -126,7 +126,7 @@ def test_a_model_outside_a_model_layer_folder_fails_listing_the_layers(project: 
 
     [failure] = diagnostics(project)
 
-    assert failure["rule"] == "MSN127"
+    assert failure["rule"] == "BRK127"
     assert failure["name"] == "model-outside-a-layer"
     assert failure["file"] == f"domains/{path}"
     assert "gold" in failure["fix"] and "marts" in failure["fix"]
@@ -145,7 +145,7 @@ def test_deeper_folders_are_read_and_change_nothing_about_the_table(project: Pat
         project, "sales/models/gold/finance/monthly/x.yaml", "SELECT * FROM sales.silver.countries"
     )
 
-    compiled = mason(project, "compile", "--env", "dev")
+    compiled = brickie(project, "compile", "--env", "dev")
 
     assert compiled.exit_code == 0, compiled.output
     assert "STREAMING TABLE dev_sales.silver.orders" in compiled.stdout
@@ -177,11 +177,11 @@ def test_two_files_with_one_name_in_a_domains_layer_fail_naming_both(project: Pa
             (sales / path).write_text((sales / "sources/orders.yaml").read_text())
     (sales / "sources/orders.yaml").unlink()
 
-    [failure] = [d for d in diagnostics(project) if d["rule"] == "MSN120"]
+    [failure] = [d for d in diagnostics(project) if d["rule"] == "BRK120"]
 
     assert f"domains/sales/{first}" in failure["message"]
     assert f"domains/sales/{second}" in failure["message"]
-    assert mason(project, "compile").exit_code == 1
+    assert brickie(project, "compile").exit_code == 1
 
 
 def test_one_name_in_two_model_layers_is_two_tables(project: Path):
@@ -193,7 +193,7 @@ def test_one_name_in_two_model_layers_is_two_tables(project: Path):
 
 
 def bundle(project: Path) -> dict:
-    result = mason(project, "compile")
+    result = brickie(project, "compile")
     assert result.exit_code == 0, result.output
     return yaml.safe_load((project / "build/databricks.yaml").read_text())
 
@@ -239,7 +239,7 @@ def test_a_layer_catalogs_project_with_a_domain_per_source_system_validates_and_
     )
 
     passes(tmp_path)
-    compiled = mason(tmp_path, "compile", "--env", "dev")
+    compiled = brickie(tmp_path, "compile", "--env", "dev")
     assert compiled.exit_code == 0, compiled.output
     assert "STREAMING TABLE dev_silver.salesforce.accounts" in compiled.stdout
     assert "MATERIALIZED VIEW dev_gold.sales.dim_account" in compiled.stdout
